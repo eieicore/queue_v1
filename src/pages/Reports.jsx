@@ -1,45 +1,35 @@
 
 import React, { useState } from "react";
 
-// Mock user data
-const users = [
-  {
-    id: "1",
-    username: "admin",
-    password: "admin123",
-    full_name: "admin",
-    access_level: "admin"
-  },
-  {
-    id: "2",
-    username: "staff",
-    password: "staff123",
-    full_name: "staff",
-    access_level: "staff"
-  },
-  {
-    id: "3",
-    username: "user",
-    password: "user123",
-    full_name: "User",
-    access_level: "user"
-  }
-];
-
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [user, setUser] = useState(null);
   const [error, setError] = useState("");
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    const found = users.find(
-      (u) => u.username === username && u.password === password
+    setError("");
+    // เรียก Supabase REST API (เปลี่ยน URL และ API KEY ให้ตรงกับโปรเจกต์ของคุณ)
+    const res = await fetch(
+      `https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/user?username=eq.${encodeURIComponent(username)}&password=eq.${encodeURIComponent(password)}`,
+      {
+        headers: {
+          apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY",
+          Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY"
+        }
+      }
     );
-    if (found) {
-      setUser(found);
-      setError("");
+    const users = await res.json();
+    if (users.length > 0) {
+      // พบ user
+      const user = users[0];
+      // ไม่เก็บ password ใน localStorage
+      const { password, ...userData } = user;
+      localStorage.setItem("user", JSON.stringify(userData));
+      setUser(userData);
+      // สามารถ redirect หรือ reload ได้ตามต้องการ
+      // window.location.reload();
     } else {
       setError("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
       setUser(null);
@@ -59,7 +49,7 @@ export default function Login() {
   return (
     <form onSubmit={handleLogin} style={{ margin: 40, maxWidth: 300 }}>
       <h2>เข้าสู่ระบบ</h2>
-          <div>
+      <div>
         <label>Username</label>
         <input
           value={username}
@@ -67,8 +57,8 @@ export default function Login() {
           required
           style={{ width: "100%", marginBottom: 10 }}
         />
-                                </div>
-                                <div>
+      </div>
+      <div>
         <label>Password</label>
         <input
           type="password"
