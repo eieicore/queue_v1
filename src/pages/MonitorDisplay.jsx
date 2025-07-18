@@ -19,7 +19,7 @@ export default function MonitorDisplay() {
   const [recentlyCalled, setRecentlyCalled] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const lastAnnouncedQueue = useRef({}); // เปลี่ยนเป็น object เก็บ queue ต่อห้อง
-  const hasInitialized = useRef(false);
+  const hasMarkedInitial = useRef(false);
   const { selectedLanguage: contextLanguage } = useContext(LanguageContext);
   const [selectedLanguage, setSelectedLanguage] = useState(() => localStorage.getItem('queue_selected_language') || contextLanguage || 'th');
 
@@ -49,8 +49,21 @@ export default function MonitorDisplay() {
     };
   }, []);
 
+  // Mark all current queues as announced the first time servingQueues is populated
   useEffect(() => {
-    if (!hasInitialized.current) return; // Skip announcements on first load
+    if (!hasMarkedInitial.current && servingQueues.length > 0) {
+      servingQueues.forEach(queue => {
+        if (queue && queue.queue_number && queue.room_id) {
+          const announceKey = `${queue.queue_number}:${queue.called_at || ''}`;
+          lastAnnouncedQueue.current[queue.room_id] = { announceKey };
+        }
+      });
+      hasMarkedInitial.current = true;
+    }
+  }, [servingQueues]);
+
+  useEffect(() => {
+    if (!hasMarkedInitial.current) return; // Skip announcements on first load
     // ประกาศเสียงสำหรับแต่ละห้องที่มีคิวใหม่ถูกเรียกหรือเรียกซ้ำ (called_at เปลี่ยน)
     servingQueues.forEach((queue) => {
       if (!queue || !queue.queue_number || !queue.room_id) return;
@@ -74,31 +87,6 @@ export default function MonitorDisplay() {
     });
     // *** Do NOT delete lastAnnouncedQueue entries when queues disappear ***
   }, [servingQueues, rooms, selectedLanguage]);
-
-  // Mark all current queues as announced on first load only
-  useEffect(() => {
-    if (!hasInitialized.current) {
-      servingQueues.forEach(queue => {
-        if (queue && queue.queue_number && queue.room_id) {
-          const announceKey = `${queue.queue_number}:${queue.called_at || ''}`;
-          lastAnnouncedQueue.current[queue.room_id] = { announceKey };
-        }
-      });
-      hasInitialized.current = true;
-    }
-  }, [servingQueues, selectedLanguage]);
-
-  useEffect(() => {
-    if (hasInitialized.current) {
-      // When language changes, mark all current queues as announced for the new language
-      servingQueues.forEach(queue => {
-        if (queue && queue.queue_number && queue.room_id) {
-          const announceKey = `${queue.queue_number}:${queue.called_at || ''}`;
-          lastAnnouncedQueue.current[queue.room_id] = { announceKey };
-        }
-      });
-    }
-  }, [selectedLanguage, servingQueues]);
 
   const loadData = async () => {
     try {
