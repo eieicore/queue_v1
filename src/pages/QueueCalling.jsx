@@ -129,7 +129,6 @@ function QueueCallingContent() {
         message: `เรียกคิว ${nextQueue.queue_number} แล้ว` 
       });
       
-      announceQueue(nextQueue);
       setTimeout(loadData, 500); // Wait 500ms before reload to ensure Supabase update
     } catch (error) {
       setLastAction({ type: 'error', message: 'ไม่สามารถเรียกคิวได้' });
@@ -138,13 +137,14 @@ function QueueCallingContent() {
 
   const repeatCall = async () => {
     if (!currentQueue) return;
-    
+    await Queue.update(currentQueue.qr_code, {
+      called_at: new Date().toISOString()
+    });
     setLastAction({ 
       type: 'success', 
       message: `เรียกซ้ำคิว ${currentQueue.queue_number}` 
     });
-    
-    announceQueue(currentQueue);
+    loadData();
   };
 
   const skipQueue = async () => {
@@ -190,7 +190,6 @@ function QueueCallingContent() {
         message: `เรียกคิว ${queue?.queue_number || ''} กลับมาแล้ว` 
       });
       if (queue) {
-        announceQueue(queue);
       }
       loadData();
     } catch (error) {
@@ -283,75 +282,6 @@ function QueueCallingContent() {
       return room.room_names[language];
     }
     return room?.room_name || 'ห้องที่กำหนด';
-  };
-
-  const announceQueue = (queue) => {
-    if (announcingRef.current) return; // ป้องกันการประกาศซ้อน
-    
-    const room = rooms.find(r => r.room_code === queue.room_id);
-    const roomName = getRoomName(room, selectedLanguage);
-    let message = '';
-    
-    switch (selectedLanguage) {
-      case 'th':
-        message = `คิวหมายเลข ${queue.queue_number}, กรุณาเข้า${roomName}`;
-        break;
-      case 'en':
-        message = `Queue number ${queue.queue_number}, please proceed to ${roomName}`;
-        break;
-      case 'zh':
-        message = `${queue.queue_number}号，请到${roomName}`;
-        break;
-      default:
-        // Fallback to Thai or English if selectedLanguage is not 'th', 'en', or 'zh'
-        message = `คิวหมายเลข ${queue.queue_number}, กรุณาเข้า${roomName}`;
-        break;
-    }
-    
-    if ('speechSynthesis' in window) {
-      speechSynthesis.cancel();
-      announcingRef.current = true;
-      
-      const utterance = new SpeechSynthesisUtterance(message);
-      // Ensure the language code exists in LANGUAGE_VOICES, fallback to 'th' if not
-      const langCode = LANGUAGE_VOICES[selectedLanguage]?.code || LANGUAGE_VOICES['th'].code;
-      utterance.lang = langCode;
-      utterance.rate = 0.85; // ปรับความเร็วให้ช้าลงเล็กน้อยเพื่อความชัดเจน
-      utterance.pitch = 1.1; // ปรับโทนเสียงให้สูงขึ้นเล็กน้อย
-      utterance.volume = 1.0;
-      
-      const setVoiceAndSpeak = () => {
-        const voices = speechSynthesis.getVoices();
-        if (voices.length === 0) return;
-
-        const currentLangShortCode = (LANGUAGE_VOICES[selectedLanguage]?.code || LANGUAGE_VOICES['th'].code).split('-')[0];
-
-        // พยายามค้นหาเสียงผู้หญิงสำหรับภาษานั้นๆ
-        const femaleVoice = voices.find(voice => 
-          voice.lang.startsWith(currentLangShortCode) &&
-          (voice.name.toLowerCase().includes('female') || 
-           voice.name.toLowerCase().includes('kanya') || // ชื่อเสียงผู้หญิงไทยยอดนิยม
-           voice.name.toLowerCase().includes('ผู้หญิง'))
-        );
-
-        // หากไม่พบ ให้ใช้เสียงแรกที่เจอสำหรับภาษานั้นๆ
-        const fallbackVoice = voices.find(voice => voice.lang.startsWith(currentLangShortCode));
-
-        utterance.voice = femaleVoice || fallbackVoice || null;
-        
-        speechSynthesis.speak(utterance);
-      };
-
-      utterance.onend = () => {
-        announcingRef.current = false;
-      };
-
-      if (speechSynthesis.getVoices().length === 0) {
-        speechSynthesis.addEventListener('voiceschanged', setVoiceAndSpeak, { once: true });
-      } else {
-        setVoiceAndSpeak();
-      }
-    }
   };
 
   const getWaitingQueues = () => {

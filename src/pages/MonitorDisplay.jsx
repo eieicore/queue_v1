@@ -12,7 +12,7 @@ export default function MonitorDisplay() {
   const [allQueues, setAllQueues] = useState([]); // New state for all queues
   const [recentlyCalled, setRecentlyCalled] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const lastAnnouncedQueue = useRef(null);
+  const lastAnnouncedQueue = useRef({}); // เปลี่ยนเป็น object เก็บ queue ต่อห้อง
 
   useEffect(() => {
     loadData();
@@ -24,20 +24,28 @@ export default function MonitorDisplay() {
     };
   }, []);
 
-  // ลบ useEffect ที่ประกาศเสียงออก
-  // useEffect(() => {
-  //   // สมมุติว่า servingQueues คือคิวที่กำลังให้บริการ
-  //   if (servingQueues.length > 0) {
-  //     const currentQueue = servingQueues[0]; // หรือเลือกตามห้องที่ต้องการ
-  //     if (lastAnnouncedQueue.current !== currentQueue.queue_number) {
-  //       // ประกาศเสียง
-  //       const msg = new window.SpeechSynthesisUtterance(`ขอเชิญคิว ${currentQueue.queue_number} เข้ารับบริการที่ ${currentQueue.room_name}`);
-  //       msg.lang = 'th-TH';
-  //       window.speechSynthesis.speak(msg);
-  //       lastAnnouncedQueue.current = currentQueue.queue_number;
-  //     }
-  //   }
-  // }, [servingQueues]);
+  useEffect(() => {
+    // ประกาศเสียงสำหรับแต่ละห้องที่มีคิวใหม่ถูกเรียกหรือเรียกซ้ำ (called_at เปลี่ยน)
+    servingQueues.forEach((queue) => {
+      if (!queue || !queue.queue_number || !queue.room_id) return;
+      // ใช้ queue_number + called_at เป็น key
+      const announceKey = `${queue.queue_number}:${queue.called_at || ''}`;
+      if (lastAnnouncedQueue.current[queue.room_id] !== announceKey) {
+        const room = rooms.find(r => r.room_code === queue.room_id);
+        const roomName = room ? (room.room_names?.th || room.room_name || queue.room_id) : queue.room_id;
+        const msg = new window.SpeechSynthesisUtterance(`ขอเชิญคิว ${queue.queue_number} เข้ารับบริการที่ ${roomName}`);
+        msg.lang = 'th-TH';
+        window.speechSynthesis.speak(msg);
+        lastAnnouncedQueue.current[queue.room_id] = announceKey;
+      }
+    });
+    // ถ้าห้องไหนไม่มีคิวแล้ว ให้ลบออกจาก lastAnnouncedQueue เพื่อให้ประกาศใหม่ได้เมื่อมีคิวใหม่
+    Object.keys(lastAnnouncedQueue.current).forEach(roomId => {
+      if (!servingQueues.find(q => q.room_id === roomId)) {
+        delete lastAnnouncedQueue.current[roomId];
+      }
+    });
+  }, [servingQueues, rooms]);
 
   const loadData = async () => {
     try {
