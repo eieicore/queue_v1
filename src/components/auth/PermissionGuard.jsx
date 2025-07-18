@@ -14,12 +14,19 @@ export default function PermissionGuard({ children, requiredLevel = "staff", all
 
   const checkPermissions = async () => {
     try {
-      const userData = await User.me();
+      // ดึง user จาก localStorage
+      const userData = (() => {
+        try {
+          return JSON.parse(localStorage.getItem('user'));
+        } catch {
+          return null;
+        }
+      })();
       setUser(userData);
       
-      const userLevel = userData.access_level || 'staff';
-      const userRole = userData.role || 'user';
-      
+      const userLevel = (userData?.access_level || 'staff').toLowerCase();
+      const userRole = userData?.role || 'user';
+      console.log('userData', userData);
       // Check access level hierarchy
       const levelHierarchy = {
         'viewer': 1,

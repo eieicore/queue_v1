@@ -280,14 +280,14 @@ function getCurrentUser() {
   if (currentUser) return currentUser;
   const id = localStorage.getItem('currentUserId');
   if (!id) return null;
-  const users = getLocal('users');
+  const users = getLocal('user');
   return users.find(u => u.id === id) || null;
 }
 export const User = {
-  list: async () => getLocal('users'),
+  list: async () => getLocal('user'),
   me: async () => getCurrentUser(),
   login: async (username, password) => {
-    const users = getLocal('users');
+    const users = getLocal('user');
     const user = users.find(u => u.username === username && u.password === password);
     if (user) {
       currentUser = user;
