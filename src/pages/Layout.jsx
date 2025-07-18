@@ -112,9 +112,10 @@ export default function Layout({ children, currentPageName }) {
 
   // handleLogout: ออกจากระบบแล้ว redirect ทันที
   const handleLogout = async () => {
-    await User.logout();
+    // ลบ user ออกจาก localStorage
+    localStorage.removeItem('user');
     setUser(null);
-    navigate('/');
+    navigate('/'); // กลับไปหน้า login
   };
 
   // เพิ่มฟังก์ชันสำหรับอัปเดต user หลัง login สำเร็จ (ส่ง prop นี้ไป LoginGuard หรือหน้า login)

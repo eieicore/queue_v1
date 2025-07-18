@@ -30,7 +30,11 @@ export default function MonitorDisplay() {
       if (!queue || !queue.queue_number || !queue.room_id) return;
       // ใช้ queue_number + called_at เป็น key
       const announceKey = `${queue.queue_number}:${queue.called_at || ''}`;
-      if (lastAnnouncedQueue.current[queue.room_id] !== announceKey) {
+      // ประกาศเสียงเฉพาะคิวที่ถูกเรียกใหม่ (ไม่ใช่ตอนเข้า/refresh หน้า)
+      if (
+        lastAnnouncedQueue.current[queue.room_id] !== announceKey &&
+        Object.keys(lastAnnouncedQueue.current).length !== 0 // ป้องกันประกาศตอนเข้า/refresh หน้า
+      ) {
         const room = rooms.find(r => r.room_code === queue.room_id);
         const roomName = room ? (room.room_names?.th || room.room_name || queue.room_id) : queue.room_id;
         const msg = new window.SpeechSynthesisUtterance(`ขอเชิญคิว ${queue.queue_number} เข้ารับบริการที่ ${roomName}`);
@@ -46,6 +50,19 @@ export default function MonitorDisplay() {
       }
     });
   }, [servingQueues, rooms]);
+
+  // เมื่อเข้า/refresh ครั้งแรก: mark ทุกคิวที่กำลังให้บริการว่า 'ประกาศแล้ว'
+  useEffect(() => {
+    if (servingQueues.length > 0 && Object.keys(lastAnnouncedQueue.current).length === 0) {
+      servingQueues.forEach(queue => {
+        if (queue && queue.queue_number && queue.room_id) {
+          const announceKey = `${queue.queue_number}:${queue.called_at || ''}`;
+          lastAnnouncedQueue.current[queue.room_id] = announceKey;
+        }
+      });
+    }
+    // eslint-disable-next-line
+  }, [servingQueues]);
 
   const loadData = async () => {
     try {
