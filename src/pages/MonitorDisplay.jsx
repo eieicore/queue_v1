@@ -168,7 +168,7 @@ export default function MonitorDisplay() {
       {/* Main Grid */}
       <main className="relative z-10 p-8 max-w-7xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {rooms.map(room => {
+          {[...rooms].sort((a, b) => (a.display_order || 0) - (b.display_order || 0)).map(room => {
             const queue = getQueueForRoom(room.room_code);
             const waitingCount = getWaitingCount(room.room_code);
             return (

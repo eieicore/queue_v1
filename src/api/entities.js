@@ -302,7 +302,16 @@ function getCurrentUser() {
   return users.find(u => u.id === id) || null;
 }
 export const User = {
-  list: async () => getLocal('user'),
+  list: async () => {
+    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
+    const res = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/user', {
+      headers: {
+        'apikey': API_KEY,
+        'Authorization': `Bearer ${API_KEY}`
+      }
+    });
+    return await res.json();
+  },
   me: async () => getCurrentUser(),
   login: async (username, password) => {
     const users = getLocal('user');
