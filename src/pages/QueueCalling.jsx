@@ -33,7 +33,10 @@ function QueueCallingContent() {
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 30000); // เปลี่ยนเป็น 30 วินาที
+    const interval = setInterval(() => {
+      // refresh เฉพาะ queues (ไม่โหลดห้องใหม่)
+      Queue.list('-created_date').then(queuesData => setQueues(queuesData));
+    }, 2000); // 2 วินาที
     return () => clearInterval(interval);
   }, []);
 
