@@ -99,9 +99,9 @@ export default function Layout({ children, currentPageName }) {
     if (userData) {
       setUser(JSON.parse(userData));
     } else {
-      setUser(null);
+        setUser(null);
     }
-    setIsLoadingUser(false);
+        setIsLoadingUser(false);
   }, []);
 
   React.useEffect(() => {

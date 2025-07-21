@@ -31,10 +31,7 @@ export default function MonitorDisplay() {
       // ใช้ queue_number + called_at เป็น key
       const announceKey = `${queue.queue_number}:${queue.called_at || ''}`;
       // ประกาศเสียงเฉพาะคิวที่ถูกเรียกใหม่ (ไม่ใช่ตอนเข้า/refresh หน้า)
-      if (
-        lastAnnouncedQueue.current[queue.room_id] !== announceKey &&
-        Object.keys(lastAnnouncedQueue.current).length !== 0 // ป้องกันประกาศตอนเข้า/refresh หน้า
-      ) {
+      if (lastAnnouncedQueue.current[queue.room_id] !== announceKey) {
         const room = rooms.find(r => r.room_code === queue.room_id);
         const roomName = room ? (room.room_names?.th || room.room_name || queue.room_id) : queue.room_id;
         const msg = new window.SpeechSynthesisUtterance(`ขอเชิญคิว ${queue.queue_number} เข้ารับบริการที่ ${roomName}`);

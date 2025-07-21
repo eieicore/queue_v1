@@ -399,7 +399,7 @@ function QueueCallingContent() {
             </DialogHeader>
             <div className="py-4">
               <p className="mb-4 text-slate-600">เลือกห้องที่ต้องการส่งต่อไป:</p>
-              <div className="grid gap-2">
+              <div className="grid gap-2 max-h-96 overflow-y-auto pr-1">
                 {rooms
                   .filter(r => r.room_code !== selectedRoom && r.is_active)
                   .map(room => (

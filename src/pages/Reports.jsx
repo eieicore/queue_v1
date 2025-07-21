@@ -10,7 +10,7 @@ import { Download, BarChart3, Clock, Users, Loader2, MapPin, ArrowRight, Eye, Ch
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
+import { format, isSameDay, isSameMonth, isSameYear, parse } from 'date-fns';
 import { th } from 'date-fns/locale';
 
 import LoginGuard from '../components/auth/LoginGuard';
@@ -27,6 +27,10 @@ function ReportsContent() {
   const [missedQueueCount, setMissedQueueCount] = useState(0); 
   const [peakHoursData, setPeakHoursData] = useState([]); 
   const [isLoading, setIsLoading] = useState(true);
+  const [satisfactionDate, setSatisfactionDate] = useState(null); // สำหรับรายวัน
+  const [satisfactionMonth, setSatisfactionMonth] = useState(''); // yyyy-MM
+  const [satisfactionYear, setSatisfactionYear] = useState(''); // yyyy
+  const [satisfactionFilterType, setSatisfactionFilterType] = useState('day'); // day, month, year
   
   useEffect(() => {
     generateReports();
@@ -230,6 +234,27 @@ function ReportsContent() {
     link.click();
     document.body.removeChild(link);
   };
+
+  // ฟังก์ชัน filter satisfaction ตามวันที่
+  const filteredSatisfactionData = satisfactionReportData.filter((d) => {
+    const completedAt = d.completed_at ? new Date(d.completed_at) : null;
+    if (!completedAt) return false;
+    if (satisfactionFilterType === 'day') {
+      if (!satisfactionDate) return true;
+      return isSameDay(completedAt, satisfactionDate);
+    }
+    if (satisfactionFilterType === 'month') {
+      if (!satisfactionMonth) return true;
+      // yyyy-MM
+      const monthStr = completedAt.getFullYear() + '-' + String(completedAt.getMonth() + 1).padStart(2, '0');
+      return monthStr === satisfactionMonth;
+    }
+    if (satisfactionFilterType === 'year') {
+      if (!satisfactionYear) return true;
+      return String(completedAt.getFullYear()) === satisfactionYear;
+    }
+    return true;
+  });
 
   const getPatientTypeLabel = (type) => {
     switch(type) {
@@ -584,15 +609,72 @@ function ReportsContent() {
                   <Star className="w-5 h-5 text-blue-600" />
                   รายงานความพึงพอใจ
                 </CardTitle>
-                <Button onClick={exportSatisfactionToCsv} disabled={satisfactionReportData.length === 0} variant="outline">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export CSV
-                </Button>
+                <div className="flex flex-col md:flex-row gap-2 md:items-center">
+                  <Button onClick={exportSatisfactionToCsv} disabled={satisfactionReportData.length === 0} variant="outline">
+                    <Download className="w-4 h-4 mr-2" />
+                    Export CSV
+                  </Button>
+                  <div className="flex gap-2 items-center">
+                    <Button variant={satisfactionFilterType === 'day' ? 'default' : 'outline'} size="sm" onClick={() => setSatisfactionFilterType('day')}>รายวัน</Button>
+                    <Button variant={satisfactionFilterType === 'month' ? 'default' : 'outline'} size="sm" onClick={() => setSatisfactionFilterType('month')}>รายเดือน</Button>
+                    <Button variant={satisfactionFilterType === 'year' ? 'default' : 'outline'} size="sm" onClick={() => setSatisfactionFilterType('year')}>รายปี</Button>
+                    {satisfactionFilterType === 'day' && (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="w-[180px] justify-start text-left font-normal" size="sm">
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {satisfactionDate ? format(satisfactionDate, 'PPP', { locale: th }) : 'เลือกวันที่'}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={satisfactionDate}
+                            onSelect={setSatisfactionDate}
+                            initialFocus
+                            captionLayout="buttons"
+                            fromYear={2023}
+                            toYear={new Date().getFullYear()}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                    {satisfactionFilterType === 'month' && (
+                      <input
+                        type="month"
+                        className="border rounded px-2 py-1 text-sm"
+                        value={satisfactionMonth}
+                        onChange={e => setSatisfactionMonth(e.target.value)}
+                        placeholder="yyyy-MM"
+                        style={{ minWidth: 120 }}
+                      />
+                    )}
+                    {satisfactionFilterType === 'year' && (
+                      <input
+                        type="number"
+                        className="border rounded px-2 py-1 text-sm"
+                        value={satisfactionYear}
+                        onChange={e => setSatisfactionYear(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
+                        placeholder="yyyy"
+                        style={{ minWidth: 80 }}
+                      />
+                    )}
+                    {(satisfactionFilterType === 'day' && satisfactionDate) && (
+                      <Button variant="ghost" size="icon" onClick={() => setSatisfactionDate(null)} title="ล้างวันที่">✕</Button>
+                    )}
+                    {(satisfactionFilterType === 'month' && satisfactionMonth) && (
+                      <Button variant="ghost" size="icon" onClick={() => setSatisfactionMonth('')} title="ล้างเดือน">✕</Button>
+                    )}
+                    {(satisfactionFilterType === 'year' && satisfactionYear) && (
+                      <Button variant="ghost" size="icon" onClick={() => setSatisfactionYear('')} title="ล้างปี">✕</Button>
+                    )}
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="max-h-[600px] overflow-y-auto">
-                {satisfactionReportData.length > 0 ? (
+                {filteredSatisfactionData.length > 0 ? (
                   <div className="space-y-4">
-                    {satisfactionReportData.map((survey, index) => (
+                    {filteredSatisfactionData.map((survey, index) => (
                       <div key={survey.id || survey.queue_id || index} className="border border-slate-200 rounded-lg p-4 hover:bg-slate-50 transition-colors">
                         <div className="flex items-start justify-between">
                           <div>
