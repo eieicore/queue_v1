@@ -89,27 +89,45 @@ export const Room = {
     return await res.json();
   },
   create: async (data) => {
-    const rooms = getLocal('rooms');
-    const newRoom = { ...data, id: Date.now().toString() };
-    rooms.push(newRoom);
-    setLocal('rooms', rooms);
-    return newRoom;
+    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
+    const res = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/rooms', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': API_KEY,
+        'Authorization': `Bearer ${API_KEY}`,
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify(data)
+    });
+    return await res.json();
   },
-  update: async (id, data) => {
-    const rooms = getLocal('rooms');
-    const idx = rooms.findIndex(r => r.id === id);
-    if (idx !== -1) {
-      rooms[idx] = { ...rooms[idx], ...data };
-      setLocal('rooms', rooms);
-      return rooms[idx];
-    }
-    throw new Error('Room not found');
+  update: async (room_code, data) => {
+    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
+    const res = await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/rooms?room_code=eq.${room_code}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': API_KEY,
+        'Authorization': `Bearer ${API_KEY}`,
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify(data)
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result?.message || 'Failed to update room');
+    return Array.isArray(result) ? result[0] : result;
   },
-  delete: async (id) => {
-    let rooms = getLocal('rooms');
-    rooms = rooms.filter(r => r.id !== id);
-    setLocal('rooms', rooms);
-    return true;
+  delete: async (room_code) => {
+    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
+    const res = await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/rooms?room_code=eq.${room_code}`, {
+      method: 'DELETE',
+      headers: {
+        'apikey': API_KEY,
+        'Authorization': `Bearer ${API_KEY}`
+      }
+    });
+    return res.ok;
   }
 };
 
@@ -284,7 +302,16 @@ function getCurrentUser() {
   return users.find(u => u.id === id) || null;
 }
 export const User = {
-  list: async () => getLocal('user'),
+  list: async () => {
+    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
+    const res = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/user', {
+      headers: {
+        'apikey': API_KEY,
+        'Authorization': `Bearer ${API_KEY}`
+      }
+    });
+    return await res.json();
+  },
   me: async () => getCurrentUser(),
   login: async (username, password) => {
     const users = getLocal('user');

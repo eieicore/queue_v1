@@ -68,9 +68,11 @@ export default function MonitorDisplay() {
     servingQueues.forEach((queue) => {
       if (!queue || !queue.queue_number || !queue.room_id) return;
       const announceKey = `${queue.queue_number}:${queue.called_at || ''}`;
+
       const lastAnnounced = lastAnnouncedQueue.current[queue.room_id];
       // Announce ONLY if queue/called_at changed (not language)
       if (!lastAnnounced || lastAnnounced.announceKey !== announceKey) {
+
         const room = rooms.find(r => r.room_code === queue.room_id);
         const roomName = room ? (room.room_names?.[selectedLanguage] || room.room_name || queue.room_id) : queue.room_id;
         const msg = new window.SpeechSynthesisUtterance(
@@ -192,7 +194,7 @@ export default function MonitorDisplay() {
       {/* Main Grid */}
       <main className="relative z-10 p-8 max-w-7xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {rooms.map(room => {
+          {[...rooms].sort((a, b) => (a.display_order || 0) - (b.display_order || 0)).map(room => {
             const queue = getQueueForRoom(room.room_code);
             const waitingCount = getWaitingCount(room.room_code);
             return (

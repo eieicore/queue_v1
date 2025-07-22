@@ -83,8 +83,10 @@ function AdminManagementContent() {
 
   const saveRoom = async (roomData) => {
     try {
-      if (roomData.id) {
-        await Room.update(roomData.id, roomData);
+      // ตรวจสอบว่า room_code นี้มีอยู่ใน rooms แล้วหรือไม่
+      const isEdit = rooms.some(r => r.room_code === roomData.room_code);
+      if (isEdit) {
+        await Room.update(roomData.room_code, roomData);
       } else {
         await Room.create(roomData);
       }
@@ -97,18 +99,16 @@ function AdminManagementContent() {
     }
   };
 
-  const deleteRoom = async (roomId) => {
-    if (window.confirm('คุณแน่ใจหรือไม่ว่าต้องการลบห้องนี้? การกระทำนี้ไม่สามารถย้อนกลับได้')) {
-      try {
-        await Room.delete(roomId);
-        loadData();
-        setMessage('ลบห้องเรียบร้อยแล้ว');
-        setTimeout(() => setMessage(''), 3000);
-      } catch (error) {
-        setMessage('เกิดข้อผิดพลาดในการลบห้อง');
-        console.error('Error deleting room:', error);
+  // ฟังก์ชันลบห้อง
+  const deleteRoom = async (roomCode) => {
+    await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/rooms?room_code=eq.${roomCode}`, {
+      method: "DELETE",
+      headers: {
+        apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY",
+        Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY"
       }
-    }
+    });
+    loadData();
   };
 
   const saveUser = async (userData) => {
