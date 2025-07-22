@@ -357,8 +357,8 @@ function QueueCallingContent() {
         )}
 
         {selectedRoom && (
-          <div className="grid lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1 space-y-6">
               {/* ปุ่มควบคุมคิวอยู่ด้านบน */}
               <QueueControls 
                 onCallNext={callNextQueue}
@@ -380,14 +380,17 @@ function QueueCallingContent() {
               />
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-6 h-auto lg:col-span-2">
               <WaitingList 
                 waitingQueues={getWaitingQueues()}
                 selectedRoom={selectedRoom}
                 rooms={rooms}
                 selectedLanguage={selectedLanguage}
               />
-              <PausedQueues 
+             
+          </div>
+          <div className="lg:col-span-3">
+          <PausedQueues 
                 pausedQueues={getPausedQueues()}
                 onResume={resumeQueue}
                 selectedRoom={selectedRoom}

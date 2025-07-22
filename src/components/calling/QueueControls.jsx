@@ -17,7 +17,7 @@ export default function QueueControls({
   if (simple) {
     return (
       <div className="bg-white/80 border border-slate-200 rounded-xl shadow p-6">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-2">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4 mb-2">
           <Button
             onClick={onCallNext}
             disabled={!hasWaitingQueues}
