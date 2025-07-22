@@ -30,6 +30,7 @@ export default function MonitorDisplay() {
       if (!queue || !queue.queue_number || !queue.room_id) return;
       // ใช้ queue_number + called_at เป็น key
       const announceKey = `${queue.queue_number}:${queue.called_at || ''}`;
+      // ประกาศเสียงเฉพาะคิวที่ถูกเรียกใหม่ (ไม่ใช่ตอนเข้า/refresh หน้า)
       if (lastAnnouncedQueue.current[queue.room_id] !== announceKey) {
         const room = rooms.find(r => r.room_code === queue.room_id);
         const roomName = room ? (room.room_names?.th || room.room_name || queue.room_id) : queue.room_id;
@@ -46,6 +47,19 @@ export default function MonitorDisplay() {
       }
     });
   }, [servingQueues, rooms]);
+
+  // เมื่อเข้า/refresh ครั้งแรก: mark ทุกคิวที่กำลังให้บริการว่า 'ประกาศแล้ว'
+  useEffect(() => {
+    if (servingQueues.length > 0 && Object.keys(lastAnnouncedQueue.current).length === 0) {
+      servingQueues.forEach(queue => {
+        if (queue && queue.queue_number && queue.room_id) {
+          const announceKey = `${queue.queue_number}:${queue.called_at || ''}`;
+          lastAnnouncedQueue.current[queue.room_id] = announceKey;
+        }
+      });
+    }
+    // eslint-disable-next-line
+  }, [servingQueues]);
 
   const loadData = async () => {
     try {
@@ -151,7 +165,7 @@ export default function MonitorDisplay() {
       {/* Main Grid */}
       <main className="relative z-10 p-8 max-w-7xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {rooms.map(room => {
+          {[...rooms].sort((a, b) => (a.display_order || 0) - (b.display_order || 0)).map(room => {
             const queue = getQueueForRoom(room.room_code);
             const waitingCount = getWaitingCount(room.room_code);
             return (

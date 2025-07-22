@@ -35,7 +35,7 @@ export default function RoomManagement({ rooms, onSave, onDelete }) {
   }, [rooms]);
 
   const handleEdit = (room) => {
-    setEditingRoom(room.id);
+    setEditingRoom(room.room_code); 
     setFormData({
       ...room,
       room_names: room.room_names ? {
@@ -406,7 +406,7 @@ export default function RoomManagement({ rooms, onSave, onDelete }) {
                                       <Edit className="w-4 h-4" />
                                     </Button>
                                     <Button
-                                      onClick={() => onDelete(room.id)}
+                                      onClick={() => onDelete(room.room_code)}
                                       variant="outline"
                                       size="icon"
                                       className="text-red-500 hover:bg-red-50 hover:text-red-700"

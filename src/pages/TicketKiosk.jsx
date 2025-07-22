@@ -51,8 +51,8 @@ export default function TicketKiosk() {
       const img = new window.Image();
       img.onload = () => {
         setTimeout(() => {
-          window.print();
-        }, 500);
+        window.print();
+      }, 500);
       };
       img.onerror = () => {
         setTimeout(() => {
@@ -200,7 +200,7 @@ export default function TicketKiosk() {
         patient_id: patientType === 'new' ? null : patientId,
         patient_name: patientName || null,
         room_name: room.room_name,
-        room_id: room.room_code, 
+        room_id: room.room_code,
         original_room: patientType === 'new' ? null : room.room_name,
         status: 'waiting',
         priority: patientType === 'appointment' ? 1 : 0,

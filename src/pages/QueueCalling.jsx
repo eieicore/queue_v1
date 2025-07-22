@@ -33,7 +33,10 @@ function QueueCallingContent() {
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 30000); // เปลี่ยนเป็น 30 วินาที
+    const interval = setInterval(() => {
+      // refresh เฉพาะ queues (ไม่โหลดห้องใหม่)
+      Queue.list('-created_date').then(queuesData => setQueues(queuesData));
+    }, 2000); // 2 วินาที
     return () => clearInterval(interval);
   }, []);
 
@@ -396,7 +399,7 @@ function QueueCallingContent() {
             </DialogHeader>
             <div className="py-4">
               <p className="mb-4 text-slate-600">เลือกห้องที่ต้องการส่งต่อไป:</p>
-              <div className="grid gap-2">
+              <div className="grid gap-2 max-h-96 overflow-y-auto pr-1">
                 {rooms
                   .filter(r => r.room_code !== selectedRoom && r.is_active)
                   .map(room => (

@@ -45,7 +45,7 @@ const navigationItems = [
     title: "Queue Calling",
     url: createPageUrl("QueueCalling"),
     icon: Users,
-    requiredLevel: "staff"
+    requiredLevel: "staff" || "admin"
   },
   {
     title: "Appointments",
@@ -94,17 +94,14 @@ export default function Layout({ children, currentPageName }) {
   }, []);
 
   React.useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const userData = await User.me();
-        setUser(userData);
-      } catch {
+    // โหลด user จาก localStorage แทน User.me()
+    const userData = localStorage.getItem("user");
+    if (userData) {
+      setUser(JSON.parse(userData));
+    } else {
         setUser(null);
-      } finally {
+    }
         setIsLoadingUser(false);
-      }
-    };
-    loadUser();
   }, []);
 
   React.useEffect(() => {
@@ -115,9 +112,10 @@ export default function Layout({ children, currentPageName }) {
 
   // handleLogout: ออกจากระบบแล้ว redirect ทันที
   const handleLogout = async () => {
-    await User.logout();
+    // ลบ user ออกจาก localStorage
+    localStorage.removeItem('user');
     setUser(null);
-    navigate('/');
+    navigate('/'); // กลับไปหน้า login
   };
 
   // เพิ่มฟังก์ชันสำหรับอัปเดต user หลัง login สำเร็จ (ส่ง prop นี้ไป LoginGuard หรือหน้า login)
@@ -135,17 +133,15 @@ export default function Layout({ children, currentPageName }) {
 
   const hasPermission = (requiredLevel) => {
     if (!user) return false;
-    
+    const userLevel = (user.access_level || 'staff').toLowerCase();
+    if (userLevel === 'admin') return true; // admin เข้าทุกเมนู
     const levelHierarchy = {
       'viewer': 1,
       'staff': 2,
       'admin': 3
     };
-    
-    const userLevel = user.access_level || 'staff';
     const userLevelValue = levelHierarchy[userLevel] || 1;
     const requiredLevelValue = levelHierarchy[requiredLevel] || 2;
-    
     return userLevelValue >= requiredLevelValue;
   };
 
