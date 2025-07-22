@@ -1,10 +1,16 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { Queue, Room } from '@/api/entities';
 import { Badge } from '@/components/ui/badge';
 import { Monitor, Activity, User, Clock, Volume2, Users } from 'lucide-react'; // Added Users icon
 import { AnimatePresence, motion } from 'framer-motion';
-import { useRef } from 'react';
+import { LanguageContext } from './index.jsx';
+
+const LANGUAGE_VOICES = {
+  'th': { name: 'ภาษาไทย', code: 'th-TH' },
+  'en': { name: 'English', code: 'en-US' },
+  'zh': { name: '中文', code: 'zh-CN' }
+};
 
 export default function MonitorDisplay() {
   const [rooms, setRooms] = useState([]);
@@ -13,6 +19,25 @@ export default function MonitorDisplay() {
   const [recentlyCalled, setRecentlyCalled] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const lastAnnouncedQueue = useRef({}); // เปลี่ยนเป็น object เก็บ queue ต่อห้อง
+  const hasMarkedInitial = useRef(false);
+  const { selectedLanguage: contextLanguage } = useContext(LanguageContext);
+  const [selectedLanguage, setSelectedLanguage] = useState(() => localStorage.getItem('queue_selected_language') || contextLanguage || 'th');
+
+  // Listen for language changes from other tabs (QueueCalling)
+  useEffect(() => {
+    const handleStorage = (e) => {
+      if (e.key === 'queue_selected_language' && e.newValue) {
+        setSelectedLanguage(e.newValue);
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
+  // Also update if context changes (for same tab navigation)
+  useEffect(() => {
+    setSelectedLanguage(localStorage.getItem('queue_selected_language') || contextLanguage || 'th');
+  }, [contextLanguage]);
 
   useEffect(() => {
     loadData();
@@ -24,42 +49,46 @@ export default function MonitorDisplay() {
     };
   }, []);
 
+  // Mark all current queues as announced the first time servingQueues is populated
   useEffect(() => {
-    // ประกาศเสียงสำหรับแต่ละห้องที่มีคิวใหม่ถูกเรียกหรือเรียกซ้ำ (called_at เปลี่ยน)
-    servingQueues.forEach((queue) => {
-      if (!queue || !queue.queue_number || !queue.room_id) return;
-      // ใช้ queue_number + called_at เป็น key
-      const announceKey = `${queue.queue_number}:${queue.called_at || ''}`;
-      // ประกาศเสียงเฉพาะคิวที่ถูกเรียกใหม่ (ไม่ใช่ตอนเข้า/refresh หน้า)
-      if (lastAnnouncedQueue.current[queue.room_id] !== announceKey) {
-        const room = rooms.find(r => r.room_code === queue.room_id);
-        const roomName = room ? (room.room_names?.th || room.room_name || queue.room_id) : queue.room_id;
-        const msg = new window.SpeechSynthesisUtterance(`ขอเชิญคิว ${queue.queue_number} เข้ารับบริการที่ ${roomName}`);
-        msg.lang = 'th-TH';
-        window.speechSynthesis.speak(msg);
-        lastAnnouncedQueue.current[queue.room_id] = announceKey;
-      }
-    });
-    // ถ้าห้องไหนไม่มีคิวแล้ว ให้ลบออกจาก lastAnnouncedQueue เพื่อให้ประกาศใหม่ได้เมื่อมีคิวใหม่
-    Object.keys(lastAnnouncedQueue.current).forEach(roomId => {
-      if (!servingQueues.find(q => q.room_id === roomId)) {
-        delete lastAnnouncedQueue.current[roomId];
-      }
-    });
-  }, [servingQueues, rooms]);
-
-  // เมื่อเข้า/refresh ครั้งแรก: mark ทุกคิวที่กำลังให้บริการว่า 'ประกาศแล้ว'
-  useEffect(() => {
-    if (servingQueues.length > 0 && Object.keys(lastAnnouncedQueue.current).length === 0) {
+    if (!hasMarkedInitial.current && servingQueues.length > 0) {
       servingQueues.forEach(queue => {
         if (queue && queue.queue_number && queue.room_id) {
           const announceKey = `${queue.queue_number}:${queue.called_at || ''}`;
-          lastAnnouncedQueue.current[queue.room_id] = announceKey;
+          lastAnnouncedQueue.current[queue.room_id] = { announceKey };
         }
       });
+      hasMarkedInitial.current = true;
     }
-    // eslint-disable-next-line
   }, [servingQueues]);
+
+  useEffect(() => {
+    if (!hasMarkedInitial.current) return; // Skip announcements on first load
+    // ประกาศเสียงสำหรับแต่ละห้องที่มีคิวใหม่ถูกเรียกหรือเรียกซ้ำ (called_at เปลี่ยน)
+    servingQueues.forEach((queue) => {
+      if (!queue || !queue.queue_number || !queue.room_id) return;
+      const announceKey = `${queue.queue_number}:${queue.called_at || ''}`;
+
+      const lastAnnounced = lastAnnouncedQueue.current[queue.room_id];
+      // Announce ONLY if queue/called_at changed (not language)
+      if (!lastAnnounced || lastAnnounced.announceKey !== announceKey) {
+
+        const room = rooms.find(r => r.room_code === queue.room_id);
+        const roomName = room ? (room.room_names?.[selectedLanguage] || room.room_name || queue.room_id) : queue.room_id;
+        const msg = new window.SpeechSynthesisUtterance(
+          selectedLanguage === 'th'
+            ? `ขอเชิญคิว ${queue.queue_number} เข้ารับบริการที่ ${roomName}`
+            : selectedLanguage === 'en'
+              ? `Queue number ${queue.queue_number}, please proceed to ${roomName}`
+              : `${queue.queue_number}号，请到${roomName}`
+        );
+        msg.lang = LANGUAGE_VOICES[selectedLanguage]?.code || 'th-TH';
+        window.speechSynthesis.speak(msg);
+        lastAnnouncedQueue.current[queue.room_id] = { announceKey };
+      }
+    });
+    // *** Do NOT delete lastAnnouncedQueue entries when queues disappear ***
+  }, [servingQueues, rooms, selectedLanguage]);
 
   const loadData = async () => {
     try {
@@ -90,7 +119,7 @@ export default function MonitorDisplay() {
   };
 
   const getRoomName = (room, language = 'th') => {
-    return room?.room_names?.[language] || room?.room_name || 'Unknown Room';
+    return room?.room_names?.[selectedLanguage] || room?.room_name || 'Unknown Room';
   };
 
   const getQueueForRoom = (roomCode) => {
@@ -170,7 +199,7 @@ export default function MonitorDisplay() {
             const waitingCount = getWaitingCount(room.room_code);
             return (
               <motion.div
-                key={room.id}
+                key={room.room_code || room.id}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5 }}
@@ -204,7 +233,7 @@ export default function MonitorDisplay() {
                     <AnimatePresence mode="wait">
                       {queue ? (
                         <motion.div
-                          key={queue.id}
+                          key={queue.id || queue.queue_number}
                           initial={{ opacity: 0, y: 30, scale: 0.8 }}
                           animate={{ opacity: 1, y: 0, scale: 1 }}
                           exit={{ opacity: 0, y: -30, scale: 0.8 }}
@@ -243,7 +272,7 @@ export default function MonitorDisplay() {
                         </motion.div>
                       ) : (
                         <motion.div
-                          key="waiting"
+                          key={`waiting-${room.room_code || room.id}`}
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           className="text-center text-white/60"
@@ -316,7 +345,7 @@ export default function MonitorDisplay() {
         </div>
       </footer>
 
-      <style jsx>{`
+      <style>{`
         .animate-blob {
           animation: blob 7s infinite;
         }

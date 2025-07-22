@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
 import { Queue, Room } from "@/api/entities";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -13,6 +13,7 @@ import WaitingList from "../components/calling/WaitingList";
 import RoomSelector from "../components/calling/RoomSelector";
 import PausedQueues from "../components/calling/PausedQueues";
 import LanguageSelector from "../components/calling/LanguageSelector";
+import { LanguageContext } from './index.jsx';
 
 const LANGUAGE_VOICES = {
   'th': { name: 'ภาษาไทย', code: 'th-TH' },
@@ -27,7 +28,7 @@ function QueueCallingContent() {
   const [currentQueue, setCurrentQueue] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [lastAction, setLastAction] = useState(null);
-  const [selectedLanguage, setSelectedLanguage] = useState('th');
+  const { selectedLanguage, setSelectedLanguage } = useContext(LanguageContext);
   const [isTransferring, setIsTransferring] = useState(false);
   const announcingRef = useRef(false); // ป้องกันการประกาศซ้อน
 
@@ -59,6 +60,11 @@ function QueueCallingContent() {
       return () => clearTimeout(timer);
     }
   }, [lastAction]);
+
+  useEffect(() => {
+    // Sync selectedLanguage to localStorage for cross-tab/monitor sync
+    localStorage.setItem('queue_selected_language', selectedLanguage);
+  }, [selectedLanguage]);
 
   const loadData = async () => {
     try {

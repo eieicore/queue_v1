@@ -1,3 +1,4 @@
+import React, { useState, createContext } from 'react';
 import Layout from "./Layout.jsx";
 
 import Dashboard from "./Dashboard";
@@ -17,6 +18,11 @@ import QueueStatus from "./QueueStatus";
 import AppointmentManagement from "./AppointmentManagement";
 
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
+
+export const LanguageContext = createContext({
+  selectedLanguage: 'th',
+  setSelectedLanguage: () => {},
+});
 
 const PAGES = {
     
@@ -85,9 +91,12 @@ function PagesContent() {
 }
 
 export default function Pages() {
+    const [selectedLanguage, setSelectedLanguage] = useState('th');
     return (
-        <Router>
-            <PagesContent />
-        </Router>
+        <LanguageContext.Provider value={{ selectedLanguage, setSelectedLanguage }}>
+            <Router>
+                <PagesContent />
+            </Router>
+        </LanguageContext.Provider>
     );
 }
