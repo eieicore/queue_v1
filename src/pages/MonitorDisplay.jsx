@@ -18,10 +18,13 @@ export default function MonitorDisplay() {
   const [allQueues, setAllQueues] = useState([]); // New state for all queues
   const [recentlyCalled, setRecentlyCalled] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentPage, setCurrentPage] = useState(0); // New state for pagination
   const lastAnnouncedQueue = useRef({}); // เปลี่ยนเป็น object เก็บ queue ต่อห้อง
   const hasMarkedInitial = useRef(false);
   const { selectedLanguage: contextLanguage } = useContext(LanguageContext);
   const [selectedLanguage, setSelectedLanguage] = useState(() => localStorage.getItem('queue_selected_language') || contextLanguage || 'th');
+  
+  const ROOMS_PER_PAGE = 2; // Show 2 rooms per page
 
   // Listen for language changes from other tabs (QueueCalling)
   useEffect(() => {
@@ -48,6 +51,20 @@ export default function MonitorDisplay() {
       clearInterval(clockInterval);
     };
   }, []);
+
+  // Auto-cycle through pages every 3 seconds
+  useEffect(() => {
+    const sortedRooms = [...rooms].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+    const totalPages = Math.ceil(sortedRooms.length / ROOMS_PER_PAGE);
+    
+    if (totalPages <= 1) return; // No need to cycle if only one page
+    
+    const pageInterval = setInterval(() => {
+      setCurrentPage(prevPage => (prevPage + 1) % totalPages);
+    }, 3000); // Change page every 3 seconds
+    
+    return () => clearInterval(pageInterval);
+  }, [rooms]);
 
   // Mark all current queues as announced the first time servingQueues is populated
   useEffect(() => {
@@ -80,7 +97,8 @@ export default function MonitorDisplay() {
             ? `ขอเชิญคิว ${queue.queue_number} เข้ารับบริการที่ ${roomName}`
             : selectedLanguage === 'en'
               ? `Queue number ${queue.queue_number}, please proceed to ${roomName}`
-              : `${queue.queue_number}号，请到${roomName}`
+              : `Queue number ${queue.queue_number}, please proceed to ${roomName}`
+              // : `${queue.queue_number}号，请到${roomName}`
         );
         msg.lang = LANGUAGE_VOICES[selectedLanguage]?.code || 'th-TH';
         window.speechSynthesis.speak(msg);
@@ -146,40 +164,40 @@ export default function MonitorDisplay() {
   };
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-blue-900 to-purple-900 text-white font-sans overflow-hidden relative">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white text-gray-800 font-sans overflow-hidden relative">
       {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -inset-[10px] opacity-50">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
-          <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
-          <div className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-indigo-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
+        <div className="absolute -inset-[10px] opacity-30">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-100 rounded-full mix-blend-multiply filter blur-2xl opacity-30 animate-blob"></div>
+          <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-blue-200 rounded-full mix-blend-multiply filter blur-2xl opacity-20 animate-blob animation-delay-2000"></div>
+          <div className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-blue-100 rounded-full mix-blend-multiply filter blur-2xl opacity-20 animate-blob animation-delay-4000"></div>
         </div>
       </div>
 
       {/* Header */}
-      <header className="relative z-10 p-8 border-b border-white/10 backdrop-blur-sm">
+      <header className="relative z-10 p-6 border-b border-blue-100 bg-white/80 backdrop-blur-sm shadow-sm">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-6">
             <div className="relative">
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-purple-500 rounded-2xl flex items-center justify-center shadow-2xl">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl flex items-center justify-center shadow-lg">
                 <Monitor className="w-8 h-8 text-white" />
               </div>
-              <div className="absolute -top-1 -right-1 w-6 h-6 bg-green-400 rounded-full flex items-center justify-center">
-                <Activity className="w-3 h-3 text-green-900" />
+              <div className="absolute -top-1 -right-1 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center shadow-md">
+                <Activity className="w-3 h-3 text-white" />
               </div>
             </div>
             <div>
-              <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-200 to-purple-200 bg-clip-text text-transparent tracking-wide">
+              <h1 className="text-5xl font-bold text-blue-800 tracking-wide">
                 Queue Monitor
               </h1>
-              <p className="text-blue-200 text-xl mt-2">แสดงสถานะคิวแบบเรียลไทม์</p>
+              <p className="text-blue-600 text-xl mt-2">แสดงสถานะคิวแบบเรียลไทม์</p>
             </div>
           </div>
           <div className="text-right">
-            <div className="text-4xl font-mono font-bold text-white mb-2">
+            <div className="text-4xl font-mono font-bold text-blue-800 mb-2">
               {currentTime.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' })}
             </div>
-            <div className="text-blue-200 text-lg">
+            <div className="text-blue-600 text-lg">
               {currentTime.toLocaleDateString('th-TH-u-ca-buddhist', { 
                 year: 'numeric', 
                 month: 'long', 
@@ -193,11 +211,38 @@ export default function MonitorDisplay() {
       
       {/* Main Grid */}
       <main className="relative z-10 p-8 max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {[...rooms].sort((a, b) => (a.display_order || 0) - (b.display_order || 0)).map(room => {
-            const queue = getQueueForRoom(room.room_code);
-            const waitingCount = getWaitingCount(room.room_code);
-            return (
+        {/* Page Indicator */}
+        {(() => {
+          const sortedRooms = [...rooms].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+          const totalPages = Math.ceil(sortedRooms.length / ROOMS_PER_PAGE);
+          const currentRooms = sortedRooms.slice(currentPage * ROOMS_PER_PAGE, (currentPage + 1) * ROOMS_PER_PAGE);
+          
+          return (
+            <>
+              {totalPages > 1 && (
+                <div className="flex justify-center items-center mb-8">
+                  <div className="flex items-center gap-4 bg-white/80 backdrop-blur-md rounded-full px-6 py-3 border border-blue-100 shadow-sm">
+                    <span className="text-blue-700 text-sm font-medium">หน้า</span>
+                    <div className="flex gap-2">
+                      {Array.from({ length: totalPages }, (_, i) => (
+                        <div
+                          key={i}
+                          className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                            i === currentPage ? 'bg-blue-600 scale-125' : 'bg-blue-200'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-blue-700 text-sm font-medium">{currentPage + 1}/{totalPages}</span>
+                  </div>
+                </div>
+              )}
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 min-h-[600px]">
+                {currentRooms.map(room => {
+                  const queue = getQueueForRoom(room.room_code);
+                  const waitingCount = getWaitingCount(room.room_code);
+                  return (
               <motion.div
                 key={room.room_code || room.id}
                 initial={{ opacity: 0, scale: 0.9 }}
@@ -205,23 +250,23 @@ export default function MonitorDisplay() {
                 transition={{ duration: 0.5 }}
                 className="group relative"
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-white/5 rounded-3xl blur-sm group-hover:blur-none transition-all duration-300"></div>
-                <div className="relative flex flex-col h-full bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-8 hover:bg-white/15 transition-all duration-300 shadow-2xl">
+                <div className="absolute inset-0 bg-gradient-to-br from-white/80 to-white/60 rounded-3xl blur-sm group-hover:blur-none transition-all duration-300 shadow-lg"></div>
+                <div className="relative flex flex-col h-full bg-white/90 backdrop-blur-sm border border-blue-100 rounded-3xl p-8 hover:bg-white transition-all duration-300 shadow-md hover:shadow-lg">
                   
                   {/* Room Header */}
                   <div className="flex-shrink-0">
                     <div className="flex items-center gap-4 mb-6 pb-4 border-b border-white/20">
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                      <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-md">
                         {room.room_code}
                       </div>
                       <div className="flex-1">
-                        <h3 className="text-2xl font-semibold text-white mb-1">
+                        <h3 className="text-2xl font-semibold text-gray-800 mb-1">
                           {getRoomName(room, 'th')}
                         </h3>
-                        <p className="text-blue-200 text-sm">
+                        <p className="text-gray-600 text-sm">
                           {getRoomName(room, 'en')}
                         </p>
-                        <Badge variant="outline" className="mt-2 border-white/30 text-white/80">
+                        <Badge variant="outline" className="mt-2 border-blue-200 bg-blue-50 text-blue-700">
                           {room.department}
                         </Badge>
                       </div>
@@ -242,18 +287,18 @@ export default function MonitorDisplay() {
                         >
                           {/* Status Indicator */}
                           <div className="flex items-center justify-center gap-2 mb-4">
-                            <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                            <span className="text-green-300 text-sm font-medium">กำลังให้บริการ</span>
+                            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                            <span className="text-green-700 text-sm font-semibold">กำลังให้บริการ</span>
                           </div>
                           {/* Queue Number */}
-                          <div className="text-5xl font-extrabold text-yellow-300 drop-shadow mb-4">
+                          <div className="text-5xl font-extrabold text-blue-800 drop-shadow mb-4">
                               {queue.queue_number}
                           </div>
 
                           {/* Service Duration */}
-                          <div className="flex items-center justify-center gap-2 text-white/80 text-sm">
+                          <div className="flex items-center justify-center gap-2 text-blue-700 text-sm">
                             <Clock className="w-4 h-4" />
-                            <span>
+                            <span className="font-semibold">
                               {getServiceDurationText(queue.called_at)}
                             </span>
                           </div>
@@ -262,8 +307,8 @@ export default function MonitorDisplay() {
                           <div className="mt-3">
                             <Badge 
                               className={`${queue.patient_type === 'new' ? 'bg-blue-500/20 text-blue-200' : 
-                                         queue.patient_type === 'returning' ? 'bg-green-500/20 text-green-200' : 
-                                         'bg-purple-500/20 text-purple-200'} border-0`}
+                                         queue.patient_type === 'returning' ? 'bg-green-100 text-green-800' : 
+                                         'bg-blue-100 text-blue-800'} border-0`}
                             >
                               {queue.patient_type === 'new' ? 'ผู้ป่วยใหม่' : 
                                queue.patient_type === 'returning' ? 'ผู้ป่วยเก่า' : 'นัดหมาย'}
@@ -275,14 +320,14 @@ export default function MonitorDisplay() {
                           key={`waiting-${room.room_code || room.id}`}
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
-                          className="text-center text-white/60"
+                          className="text-center"
                         >
-                          <User className="w-16 h-16 mx-auto mb-4 opacity-40"/>
-                          <p className="text-lg">รอเรียกคิว</p>
+                          <User className="w-16 h-16 mx-auto mb-4 text-blue-400 opacity-60"/>
+                          <p className="text-lg text-blue-700 font-medium">รอเรียกคิว</p>
                           <div className="mt-4 flex items-center justify-center gap-2">
-                            <div className="w-2 h-2 bg-white/30 rounded-full animate-pulse"></div>
-                            <div className="w-2 h-2 bg-white/30 rounded-full animate-pulse animation-delay-200"></div>
-                            <div className="w-2 h-2 bg-white/30 rounded-full animate-pulse animation-delay-400"></div>
+                            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse animation-delay-200"></div>
+                            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse animation-delay-400"></div>
                           </div>
                         </motion.div>
                       )}
@@ -292,52 +337,55 @@ export default function MonitorDisplay() {
                   {/* Footer Section */}
                   <div className='flex-shrink-0'>
                     {/* Waiting Count for this room */}
-                    <div className="mt-4 pt-4 border-t border-white/20 text-center">
-                      <div className="flex items-center justify-center gap-2 text-white/80">
+                    <div className="mt-4 pt-4 border-t border-blue-200 text-center">
+                      <div className="flex items-center justify-center gap-2 text-blue-700">
                         <Users className="w-4 h-4" />
-                        <span className="text-sm">คิวที่รอ: </span>
-                        <span className="font-bold text-lg text-yellow-300">{waitingCount}</span>
-                        <span className="text-sm">คิว</span>
+                        <span className="text-sm font-medium">คิวที่รอ: </span>
+                        <span className="font-bold text-lg text-blue-800">{waitingCount}</span>
+                        <span className="text-sm font-medium">คิว</span>
                       </div>
                     </div>
 
                     {/* Staff Info */}
                     {room.staff_assigned && (
                       <div className="mt-2 text-center">
-                        <p className="text-white/60 text-sm">เจ้าหน้าที่ประจำ</p>
-                        <p className="text-white font-medium">{room.staff_assigned}</p>
+                        <p className="text-blue-600 text-sm font-medium">เจ้าหน้าที่ประจำ</p>
+                        <p className="text-gray-800 font-semibold">{room.staff_assigned}</p>
                       </div>
                     )}
                   </div>
                 </div>
               </motion.div>
-            );
-          })}
-        </div>
+                  );
+                })}
+              </div>
+            </>
+          );
+        })()}
       </main>
 
       {/* Footer Status Bar */}
-      <footer className="absolute bottom-0 left-0 right-0 bg-black/40 backdrop-blur-xl border-t border-white/10 p-4 z-50">
+      <footer className="absolute bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-blue-100 p-4 z-50 shadow-inner">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-              <span className="text-white/80">ระบบออนไลน์</span>
+              <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-blue-700 font-medium">ระบบออนไลน์</span>
             </div>
-            <div className="text-white/60 text-sm">
+            <div className="text-blue-600 text-sm">
               อัปเดตล่าสุด: {currentTime.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' })}
             </div>
           </div>
-          <div className="flex items-center gap-6 text-white/80 text-sm">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-6 text-blue-700 text-sm">
+            <div className="flex items-center gap-2 font-medium">
               <User className="w-4 h-4" />
-              <span>กำลังให้บริการ: {servingQueues.length}</span> {/* Updated text */}
+              <span>กำลังให้บริการ: {servingQueues.length}</span>
             </div>
-            <div className="flex items-center gap-2"> {/* New line for total waiting queues */}
+            <div className="flex items-center gap-2 font-medium">
               <Users className="w-4 h-4" />
               <span>รอทั้งหมด: {allQueues.filter(q => q.status === 'waiting').length}</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 font-medium">
               <Volume2 className="w-4 h-4" />
               <span>เสียงประกาศ: เปิด</span>
             </div>
