@@ -6,7 +6,7 @@ import { QrCode, Link as LinkIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import '@/styles/print.css';
 
-export default function QRCodeDisplay({ qrCode, queueNumber }) {
+export default function QRCodeDisplay({ qrCode, queueNumber, onLoad }) {
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(window.location.origin + createPageUrl('QueueStatus') + `?qr_code=${qrCode}`)}`;
   const statusUrl = createPageUrl('QueueStatus') + `?qr_code=${qrCode}`;
 
@@ -19,6 +19,7 @@ export default function QRCodeDisplay({ qrCode, queueNumber }) {
             src={qrCodeUrl} 
             alt={`QR Code for queue ${queueNumber}`}
             className="w-full max-w-[50mm] h-auto"
+            onLoad={onLoad}
           />
         </div>
         

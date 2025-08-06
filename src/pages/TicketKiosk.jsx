@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Queue, Room, Patient, Appointment } from '@/api/entities';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input'; // Corrected syntax error here
+import { Input } from '@/components/ui/input'; 
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
@@ -40,28 +40,71 @@ export default function TicketKiosk() {
   const [isLoading, setIsLoading] = useState(false);
   const [generatedTicket, setGeneratedTicket] = useState(null);
   const [error, setError] = useState('');
+  const [isQrCodeLoaded, setIsQrCodeLoaded] = useState(false);
+  const [hasPrinted, setHasPrinted] = useState(false);
 
   useEffect(() => {
     loadData();
   }, []);
 
+  // Auto-generate PDF and trigger download/print
   useEffect(() => {
-    if (step === 'ticket' && generatedTicket) {
-      const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(window.location.origin + '/queuestatus?qr_code=' + generatedTicket.qr_code)}`;
-      const img = new window.Image();
-      img.onload = () => {
-        setTimeout(() => {
-        window.print();
-      }, 500);
-      };
-      img.onerror = () => {
-        setTimeout(() => {
+    if (step === 'ticket' && generatedTicket && isQrCodeLoaded && !hasPrinted) {
+      setHasPrinted(true);
+      
+      setTimeout(async () => {
+        try {
+          // Method: Create PDF blob and auto-print
+          const printContent = document.getElementById('printable-area');
+          
+          // Use html2canvas + jsPDF (you'll need to add these libraries)
+          if (window.html2canvas && window.jsPDF) {
+            const canvas = await html2canvas(printContent, {
+              scale: 2,
+              useCORS: true,
+              logging: false
+            });
+            
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const imgWidth = 210;
+            const pageHeight = 295;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            
+            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+            
+            // Auto download and print
+            const pdfBlob = pdf.output('blob');
+            const url = URL.createObjectURL(pdfBlob);
+            
+            // Create hidden iframe for printing
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = url;
+            document.body.appendChild(iframe);
+            
+            iframe.onload = () => {
+              iframe.contentWindow.print();
+              setTimeout(() => {
+                document.body.removeChild(iframe);
+                URL.revokeObjectURL(url);
+                resetForm();
+              }, 2000);
+            };
+          } else {
+            // Fallback: regular print
+            window.print();
+            setTimeout(() => resetForm(), 3000);
+          }
+        } catch (error) {
+          console.error('Print error:', error);
+          // Fallback
           window.print();
-        }, 1500);
-      };
-      img.src = qrCodeUrl;
+          setTimeout(() => resetForm(), 3000);
+        }
+      }, 500);
     }
-  }, [step, generatedTicket]);
+  }, [step, generatedTicket, isQrCodeLoaded, hasPrinted]);
 
   const loadData = async () => {
     try {
@@ -224,7 +267,12 @@ export default function TicketKiosk() {
       console.log('createdQueue', createdQueue);
       const ticket = Array.isArray(createdQueue) ? createdQueue[0] : createdQueue;
       setGeneratedTicket(ticket);
-      // รอให้ state อัปเดตเสร็จ (optional: สามารถใช้ setTimeout 100ms หรือ Promise.resolve().then())
+      
+      // Reset print states for new ticket
+      setHasPrinted(false);
+      setIsQrCodeLoaded(false);
+      
+      // รอให้ state อัปเดตเสร็จ
       await new Promise(resolve => setTimeout(resolve, 150));
       setStep('ticket');
 
@@ -247,22 +295,16 @@ export default function TicketKiosk() {
     setSelectedRoom('');
     setAppointmentData(null);
     setError('');
+    setGeneratedTicket(null);
+    setHasPrinted(false);
+    setIsQrCodeLoaded(false);
     setStep('select');
   };
 
-  const handlePrint = () => {
-    // Add a small delay to ensure the ticket is rendered before printing
-    setTimeout(() => {
-      window.print();
-    }, 500);
+  // Manual print function (backup)
+  const handleManualPrint = () => {
+    window.print();
   };
-  
-  // Auto-print when the ticket is generated
-  useEffect(() => {
-    if (step === 'ticket' && generatedTicket) {
-      handlePrint();
-    }
-  }, [step, generatedTicket]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
@@ -485,31 +527,57 @@ export default function TicketKiosk() {
         {step === 'ticket' && generatedTicket && (
           <div className="w-full">
             <div id="printable-area" className="print:block w-full">
-              {/* QR Code at the top */}
-              
-              {/* Ticket details below */}
+              {/* Ticket details */}
               <div className="print:block w-full">
                 <TicketPreview ticket={generatedTicket} />
               </div>
+              {/* QR Code */}
               <div className="print:block w-full">
-                <QRCodeDisplay qrCode={generatedTicket.qr_code} queueNumber={generatedTicket.queue_number} />
+                <QRCodeDisplay 
+                  qrCode={generatedTicket.qr_code} 
+                  queueNumber={generatedTicket.queue_number}
+                  onLoad={() => setIsQrCodeLoaded(true)}
+                />
               </div>
             </div>
             
             <div className="text-center mt-8 no-print">
-              <Button
-                onClick={resetForm}
-                className="bg-green-600 hover:bg-green-700 text-white h-14 px-8 text-lg"
-              >
-                ออกบัตรใหม่
-              </Button>
-              <Button
-                onClick={handlePrint}
-                className="ml-4 bg-blue-600 hover:bg-blue-700 text-white h-14 px-8 text-lg"
-              >
-                <Printer className="w-5 h-5 mr-2" />
-                พิมพ์บัตรคิว
-              </Button>
+              {/* แสดงสถานะการพิมพ์ */}
+              {hasPrinted ? (
+                <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center justify-center gap-2 text-green-800">
+                    <Check className="w-5 h-5" />
+                    <span className="font-medium">พิมพ์บัตรคิวเรียบร้อยแล้ว</span>
+                  </div>
+                  <p className="text-sm text-green-600 mt-1">
+                    ระบบจะกลับไปหน้าแรกอัตโนมัติภายใน 2 วินาที
+                  </p>
+                </div>
+              ) : (
+                <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center justify-center gap-2 text-blue-800">
+                    <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                    <span className="font-medium">กำลังพิมพ์บัตรคิว...</span>
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex justify-center gap-4">
+                <Button
+                  onClick={resetForm}
+                  className="bg-green-600 hover:bg-green-700 text-white h-14 px-8 text-lg"
+                >
+                  ออกบัตรใหม่
+                </Button>
+                <Button
+                  onClick={handleManualPrint}
+                  variant="outline"
+                  className="h-14 px-8 text-lg"
+                >
+                  <Printer className="w-5 h-5 mr-2" />
+                  พิมพ์อีกครั้ง
+                </Button>
+              </div>
             </div>
           </div>
         )}
