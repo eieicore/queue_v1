@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Clock, Calendar } from 'lucide-react';
+import '@/styles/print.css';
 
 const patientTypeLabels = {
   new: 'ผู้ป่วยใหม่',
@@ -45,40 +46,40 @@ export default function TicketPreview({ ticket }) {
   const patientTypeColor = patientTypeColors[ticket.patient_type] || 'bg-gray-100 text-gray-800';
 
   return (
-    <Card className="bg-white border-2 border-dashed border-slate-300 shadow-xl max-w-md mx-auto">
-      <CardHeader className="text-center border-b border-dashed border-slate-200 bg-slate-50">
+    <Card className="bg-white border-t-2 border-dashed border-slate-300 shadow-none rounded-none print:shadow-none print:border-t-2 print:border-dashed print:border-slate-300 print:max-w-full print:mx-0 print:p-3">
+      <CardHeader className="text-center p-2">
         <div className="space-y-2">
           <h2 className="text-2xl font-bold text-slate-900">บัตรคิว</h2>
           <p className="text-slate-600">โรงพยาบาล MediQueue</p>
         </div>
       </CardHeader>
-      <CardContent className="p-6 space-y-6">
+      <CardContent className="p-2 space-y-2">
         {/* Queue Number */}
         <div className="text-center">
-          <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-            <span className="text-white font-bold text-2xl">{ticket.queue_number || '-'}</span>
+          <div className="w-fit h-20 p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-2 shadow-md">
+            <p className="text-3xl font-bold text-white">{ticket.queue_number || '-'}</p>
           </div>
           <Badge className={`${patientTypeColor} text-sm`}>
             {patientTypeText}
           </Badge>
         </div>
         {/* Details */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
+        <div className="space-y-6">
+          <div className="flex justify-center space-x-4 items-center text-sm print:text-base">
             <MapPin className="w-5 h-5 text-slate-400" />
             <div>
               <p className="font-medium text-slate-900">{roomName}</p>
               <p className="text-sm text-slate-500">{department}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex justify-center space-x-4 items-center text-sm print:text-base">
             <Calendar className="w-5 h-5 text-slate-400" />
             <div>
               <p className="font-medium text-slate-900">{dateText}</p>
               <p className="text-sm text-slate-500">เวลา: {timeText}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex justify-center space-x-4 items-center text-sm print:text-base">
             <Clock className="w-5 h-5 text-slate-400" />
             <div>
               <p className="font-medium text-slate-900">เวลารอโดยประมาณ</p>

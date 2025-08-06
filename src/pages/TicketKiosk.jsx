@@ -241,15 +241,28 @@ export default function TicketKiosk() {
   };
 
   const resetForm = () => {
-    setStep('select');
     setPatientType('');
     setPatientId('');
     setPatientName('');
     setSelectedRoom('');
     setAppointmentData(null);
-    setGeneratedTicket(null);
     setError('');
+    setStep('select');
   };
+
+  const handlePrint = () => {
+    // Add a small delay to ensure the ticket is rendered before printing
+    setTimeout(() => {
+      window.print();
+    }, 500);
+  };
+  
+  // Auto-print when the ticket is generated
+  useEffect(() => {
+    if (step === 'ticket' && generatedTicket) {
+      handlePrint();
+    }
+  }, [step, generatedTicket]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
@@ -470,10 +483,17 @@ export default function TicketKiosk() {
 
         {/* Step 3: Ticket Display */}
         {step === 'ticket' && generatedTicket && (
-          <div>
-            <div id="printable-area">
-              <TicketPreview ticket={generatedTicket} />
-              <QRCodeDisplay qrCode={generatedTicket.qr_code} queueNumber={generatedTicket.queue_number} />
+          <div className="w-full">
+            <div id="printable-area" className="print:block w-full">
+              {/* QR Code at the top */}
+              
+              {/* Ticket details below */}
+              <div className="print:block w-full">
+                <TicketPreview ticket={generatedTicket} />
+              </div>
+              <div className="print:block w-full">
+                <QRCodeDisplay qrCode={generatedTicket.qr_code} queueNumber={generatedTicket.queue_number} />
+              </div>
             </div>
             
             <div className="text-center mt-8 no-print">
@@ -482,6 +502,13 @@ export default function TicketKiosk() {
                 className="bg-green-600 hover:bg-green-700 text-white h-14 px-8 text-lg"
               >
                 ออกบัตรใหม่
+              </Button>
+              <Button
+                onClick={handlePrint}
+                className="ml-4 bg-blue-600 hover:bg-blue-700 text-white h-14 px-8 text-lg"
+              >
+                <Printer className="w-5 h-5 mr-2" />
+                พิมพ์บัตรคิว
               </Button>
             </div>
           </div>

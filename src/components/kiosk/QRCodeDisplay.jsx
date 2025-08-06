@@ -4,47 +4,36 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { QrCode, Link as LinkIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import '@/styles/print.css';
 
 export default function QRCodeDisplay({ qrCode, queueNumber }) {
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(window.location.origin + createPageUrl('QueueStatus') + `?qr_code=${qrCode}`)}`;
   const statusUrl = createPageUrl('QueueStatus') + `?qr_code=${qrCode}`;
 
   return (
-    <Card className="bg-white/80 backdrop-blur-sm border-slate-200 shadow-xl max-w-md mx-auto">
-      <CardHeader className="text-center border-b border-slate-100">
-        <CardTitle className="flex items-center justify-center gap-2">
-          <QrCode className="w-6 h-6 text-blue-600" />
-          QR Code สำหรับติดตาม
-        </CardTitle>
-      </CardHeader>
-      
-      <CardContent className="p-6 text-center space-y-4">
-        <a href={statusUrl} target="_blank" rel="noopener noreferrer" className="bg-white p-4 rounded-lg border inline-block">
+    <Card className="bg-white border-0 shadow-none print:shadow-none print:border-0 print:max-w-full print:mx-0 print:p-3">
+      <div className="text-center">
+        <h3 className="text-lg font-medium mb-2">QR Code สำหรับติดตามคิว</h3>
+        <div className="flex justify-center">
           <img 
             src={qrCodeUrl} 
             alt={`QR Code for queue ${queueNumber}`}
-            className="w-48 h-48 mx-auto"
+            className="w-full max-w-[50mm] h-auto"
           />
-        </a>
+        </div>
         
-        <div className="space-y-2">
-          <p className="font-medium text-slate-900">สแกนเพื่อติดตามคิว {queueNumber}</p>
-          <p className="text-sm text-slate-600">
-            ใช้แอปกล้องของโทรศัพท์สแกน QR Code หรือคลิกปุ่มด้านล่าง
+        <div className="space-y-1">
+          <p className="font-medium text-slate-900 text-base print:text-sm">สแกนเพื่อติดตามคิว {queueNumber}</p>
+          <p className="text-xs text-slate-600 print:text-[11px]">
+            ใช้แอปกล้องของโทรศัพท์สแกน QR Code
           </p>
         </div>
 
-        <Button asChild className="w-full">
-          <Link to={statusUrl} target="_blank">
-            <LinkIcon className="w-4 h-4 mr-2" />
-            เปิดหน้าติดตามคิว
-          </Link>
-        </Button>
-        
-        <div className="text-xs text-slate-500 mt-4 p-2 bg-slate-50 rounded">
-          รหัสอ้างอิง: {qrCode}
+        <div className="mt-2 text-xs text-slate-500">
+          <p>รหัสอ้างอิง: {qrCode}</p>
+          <p className="text-[10px] mt-1">สแกนเพื่อตรวจสอบสถานะคิวของคุณ</p>
         </div>
-      </CardContent>
+      </div>
     </Card>
   );
 }
