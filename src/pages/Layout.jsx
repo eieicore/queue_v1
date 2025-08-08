@@ -153,6 +153,17 @@ export default function Layout({ children, currentPageName }) {
   const hideSidebar = location.pathname.startsWith('/QueueStatus');
   const hideHeader = location.pathname.startsWith('/QueueStatus');
 
+  // List of pages that don't require authentication
+  const publicPages = ['/queuestatus'];
+  const isPublicPage = publicPages.some(page => 
+    location.pathname.toLowerCase().endsWith(page)
+  );
+
+  // If it's a public page, render the content without the layout
+  if (isPublicPage) {
+    return <div className="min-h-screen bg-gray-50">{children}</div>;
+  }
+
   if (!user && !isLoadingUser) {
     // แสดงหน้า login
     return <LoginGuard onLoginSuccess={handleLoginSuccess} />;
