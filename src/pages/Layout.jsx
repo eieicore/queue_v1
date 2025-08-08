@@ -154,7 +154,7 @@ export default function Layout({ children, currentPageName }) {
   const hideHeader = location.pathname.startsWith('/QueueStatus');
 
   // List of pages that don't require authentication
-  const publicPages = ['/queuestatus'];
+  const publicPages = ['/QueueStatus'];
   const isPublicPage = publicPages.some(page => 
     location.pathname.toLowerCase().endsWith(page)
   );
