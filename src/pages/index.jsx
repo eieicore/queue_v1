@@ -1,102 +1,56 @@
+// src/Pages.jsx
 import React, { useState, createContext } from 'react';
-import Layout from "./Layout.jsx";
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
-import Dashboard from "./Dashboard";
-
-import QueueCalling from "./QueueCalling";
-
-import AdminManagement from "./AdminManagement";
-
-import MonitorDisplay from "./MonitorDisplay";
-
-import TicketKiosk from "./TicketKiosk";
-
-import Reports from "./Reports";
-
-import QueueStatus from "./QueueStatus";
-
-import AppointmentManagement from "./AppointmentManagement";
-
-import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
+import Layout from './Layout';
+import Dashboard from './Dashboard';
+import QueueCalling from './QueueCalling';
+import AdminManagement from './AdminManagement';
+import MonitorDisplay from './MonitorDisplay';
+import TicketKiosk from './TicketKiosk';
+import Reports from './Reports';
+import QueueStatus from './QueueStatus';
+import AppointmentManagement from './AppointmentManagement';
 
 export const LanguageContext = createContext({
   selectedLanguage: 'th',
   setSelectedLanguage: () => {},
 });
 
-const PAGES = {
-    
-    Dashboard: Dashboard,
-    
-    QueueCalling: QueueCalling,
-    
-    AdminManagement: AdminManagement,
-    
-    MonitorDisplay: MonitorDisplay,
-    
-    TicketKiosk: TicketKiosk,
-    
-    Reports: Reports,
-    
-    QueueStatus: QueueStatus,
-    
-    AppointmentManagement: AppointmentManagement,
-    
-}
+function ProtectedRoutes() {
+  return (
+    <Layout>
+      <Routes>
+        {/* หน้าแรก (index) */}
+        <Route index element={<Dashboard />} />
 
-function _getCurrentPage(url) {
-    if (url.endsWith('/')) {
-        url = url.slice(0, -1);
-    }
-    let urlLastPart = url.split('/').pop();
-    if (urlLastPart.includes('?')) {
-        urlLastPart = urlLastPart.split('?')[0];
-    }
-
-    const pageName = Object.keys(PAGES).find(page => page.toLowerCase() === urlLastPart.toLowerCase());
-    return pageName || Object.keys(PAGES)[0];
-}
-
-// Create a wrapper component that uses useLocation inside the Router context
-function PagesContent() {
-    const location = useLocation();
-    const currentPage = _getCurrentPage(location.pathname);
-    
-    return (
-        <Layout currentPageName={currentPage}>
-            <Routes>            
-                
-                    <Route path="/" element={<Dashboard />} />
-                
-                
-                <Route path="/Dashboard" element={<Dashboard />} />
-                
-                <Route path="/QueueCalling" element={<QueueCalling />} />
-                
-                <Route path="/AdminManagement" element={<AdminManagement />} />
-                
-                <Route path="/MonitorDisplay" element={<MonitorDisplay />} />
-                
-                <Route path="/TicketKiosk" element={<TicketKiosk />} />
-                
-                <Route path="/Reports" element={<Reports />} />
-                
-                <Route path="/QueueStatus" element={<QueueStatus />} />
-                
-                <Route path="/AppointmentManagement" element={<AppointmentManagement />} />
-                
-            </Routes>
-        </Layout>
-    );
+        {/* กำหนด path สำหรับแต่ละหน้า */}
+        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="queuecalling" element={<QueueCalling />} />
+        <Route path="adminmanagement" element={<AdminManagement />} />
+        <Route path="monitordisplay" element={<MonitorDisplay />} />
+        <Route path="ticketkiosk" element={<TicketKiosk />} />
+        <Route path="reports" element={<Reports />} />
+        <Route path="appointmentmanagement" element={<AppointmentManagement />} />
+      </Routes>
+    </Layout>
+  );
 }
 
 export default function Pages() {
-    const [selectedLanguage, setSelectedLanguage] = useState('th');
-    return (
-        <LanguageContext.Provider value={{ selectedLanguage, setSelectedLanguage }}>
-            <Router>
-                <PagesContent />
-            </Router>
-        </LanguageContext.Provider>
-    );
+  const [selectedLanguage, setSelectedLanguage] = useState('th');
+
+  return (
+    <LanguageContext.Provider value={{ selectedLanguage, setSelectedLanguage }}>
+      <Router>
+        <Routes>
+          {/* 1) Public route: ไม่ต้อง login */}
+          <Route path="/queuestatus" element={<QueueStatus />} />
+
+          {/* 2) Protected routes: หุ้มด้วย Layout (มี LoginGuard) */}
+          <Route path="/*" element={<ProtectedRoutes />} />
+        </Routes>
+      </Router>
+    </LanguageContext.Provider>
+  );
 }
