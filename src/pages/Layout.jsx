@@ -82,8 +82,10 @@ export default function Layout({ children }) {
     return map[user.access_level] >= map[level];
   };
 
+
   // While loading, render nothing (or a spinner)
   if (isLoadingUser) return null;
+
 
   // If not logged in, show LoginGuard
   if (!user) {
