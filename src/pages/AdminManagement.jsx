@@ -37,7 +37,8 @@ function AdminManagementContent() {
         User.list()
       ]);
       
-      setSettings(settingsData[0] || {
+      // Default settings structure that matches the database schema
+      const defaultSettings = {
         ticket_format: {
           new_patient_prefix: 'N',
           returning_patient_prefix: 'R',
@@ -45,10 +46,38 @@ function AdminManagementContent() {
         },
         voice_announcements: true,
         auto_skip_timeout: 5,
-        email_notifications: true,
+        email_notifications: false,
         working_hours: {
-          start_time: '08:00',
-          end_time: '17:00'
+          monday: { open: '08:00', close: '17:00' },
+          tuesday: { open: '08:00', close: '17:00' },
+          wednesday: { open: '08:00', close: '17:00' },
+          thursday: { open: '08:00', close: '17:00' },
+          friday: { open: '08:00', close: '17:00' },
+          saturday: { open: '08:00', close: '12:00' },
+          sunday: { open: '00:00', close: '00:00' }
+        },
+        actions: 'default'
+      };
+
+      // Use the first settings from the database or create default settings
+      const currentSettings = settingsData[0] || defaultSettings;
+      
+      // If we have a default settings ID, we need to create a new record instead of updating
+      const isDefaultSettings = currentSettings.id === 'default-settings';
+      
+      // Ensure all settings fields are present and preserve the ID
+      setSettings({
+        ...defaultSettings,
+        ...currentSettings,
+        // Only keep the ID if it's not the default settings ID
+        id: isDefaultSettings ? null : currentSettings.id,
+        ticket_format: {
+          ...defaultSettings.ticket_format,
+          ...(currentSettings.ticket_format || {})
+        },
+        working_hours: {
+          ...defaultSettings.working_hours,
+          ...(currentSettings.working_hours || {})
         }
       });
       
@@ -64,18 +93,46 @@ function AdminManagementContent() {
   const saveSettings = async (newSettings) => {
     setIsSaving(true);
     try {
-      if (settings.id) {
-        await QueueSettings.update(settings.id, newSettings);
+      // Create a clean settings object with only the fields we want to save
+      const settingsToSave = {
+        ticket_format: newSettings.ticket_format || {},
+        voice_announcements: Boolean(newSettings.voice_announcements),
+        auto_skip_timeout: Number(newSettings.auto_skip_timeout) || 5,
+        email_notifications: Boolean(newSettings.email_notifications),
+        working_hours: newSettings.working_hours || {},
+        actions: newSettings.actions || 'default'
+      };
+
+      let result;
+      let savedSettings;
+      const isUpdate = settings.id && settings.id !== 'default-settings';
+      
+      if (isUpdate) {
+        console.log('Updating existing settings with ID:', settings.id);
+        result = await QueueSettings.update(settings.id, settingsToSave);
       } else {
-        await QueueSettings.create(newSettings);
+        console.log('Creating new settings record');
+        // If we're creating a new record, make sure to remove the ID
+        const { id, ...settingsWithoutId } = settingsToSave;
+        result = await QueueSettings.create(settingsWithoutId);
       }
       
-      setSettings(newSettings);
+      // If we got an array back (which can happen with Supabase), use the first item
+      savedSettings = Array.isArray(result) ? result[0] : result;
+      
+      console.log('Saved settings:', savedSettings);
+      
+      // Update the settings with the saved data including the ID
+      setSettings({
+        ...newSettings,
+        id: savedSettings.id || settings.id
+      });
+      
       setMessage('บันทึกการตั้งค่าเรียบร้อยแล้ว');
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
-      setMessage('เกิดข้อผิดพลาดในการบันทึก');
       console.error('Error saving settings:', error);
+      setMessage(`เกิดข้อผิดพลาดในการบันทึก: ${error.message}`);
     } finally {
       setIsSaving(false);
     }

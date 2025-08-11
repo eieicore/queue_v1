@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Queue, Room, Patient, Appointment } from '@/api/entities';
+import { Queue, Room, Patient, Appointment, QueueSettings } from '@/api/entities';
+import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input'; 
@@ -42,10 +43,32 @@ export default function TicketKiosk() {
   const [error, setError] = useState('');
   const [isQrCodeLoaded, setIsQrCodeLoaded] = useState(false);
   const [hasPrinted, setHasPrinted] = useState(false);
+  const [queueSettings, setQueueSettings] = useState({
+    ticket_format: {
+      new_patient_prefix: 'N',
+      returning_patient_prefix: 'R',
+      appointment_prefix: 'A'
+    }
+  });
 
   useEffect(() => {
-    loadData();
+    const loadInitialData = async () => {
+      await loadData();
+      await loadQueueSettings();
+    };
+    loadInitialData();
   }, []);
+
+  const loadQueueSettings = async () => {
+    try {
+      const settings = await QueueSettings.list();
+      if (settings && settings.length > 0) {
+        setQueueSettings(settings[0]);
+      }
+    } catch (error) {
+      console.error('Error loading queue settings:', error);
+    }
+  };
 
   // Auto-generate PDF and trigger download/print
   useEffect(() => {
@@ -185,7 +208,6 @@ export default function TicketKiosk() {
     const timestamp = Date.now().toString().slice(-3);
     return `${roomCode}${prefix}${timestamp}`;
   };
-
   const generateQRCode = (queueNumber) => {
     return `MEDIQUEUE_${queueNumber}_${Date.now()}`;
   };
@@ -234,38 +256,46 @@ export default function TicketKiosk() {
         return;
       }
 
-      const queueNumber = generateQueueNumber(room.room_code, patientType);
-      const qrCode = generateQRCode(queueNumber);
+      // Get the appropriate prefix from queueSettings
+      let prefix = '';
+      if (queueSettings?.ticket_format) {
+        if (patientType === 'new') {
+          prefix = queueSettings.ticket_format.new_patient_prefix || 'N';
+        } else if (patientType === 'returning') {
+          prefix = queueSettings.ticket_format.returning_patient_prefix || 'R';
+        } else if (patientType === 'appointment') {
+          prefix = queueSettings.ticket_format.appointment_prefix || 'A';
+        }
+      } else {
+        // Fallback to hardcoded prefixes if queueSettings is not available
+        prefix = patientType === 'new' ? 'N' : (patientType === 'returning' ? 'R' : 'A');
+      }
 
-      const queueData = {
-        queue_number: queueNumber,
-        patient_type: patientType,
-        patient_id: patientType === 'new' ? null : patientId,
-        patient_name: patientName || null,
-        room_name: room.room_name,
-        room_id: room.room_code,
-        original_room: patientType === 'new' ? null : room.room_name,
-        status: 'waiting',
-        priority: patientType === 'appointment' ? 1 : 0,
-        qr_code: qrCode,
-        estimated_wait_time: calculateEstimatedWaitTime(room.room_code),
-        triage_level: 'non_urgent',
-        room_history: [{
-          room_name: room.room_name,
-          entered_at: new Date().toISOString(),
-          left_at: null,
-          duration_minutes: null
-        }],
-        // เพิ่มข้อมูลนัดหมายลงไปด้วย
-        doctor_name: appointmentData ? appointmentData.doctor_name : null,
-        department: room.department,
-        appointment_time: appointmentData ? appointmentData.appointment_time : null,
-        appointment_type: appointmentData ? appointmentData.appointment_type : null,
-      };
+      // Call Supabase RPC function to get the next queue number
+      const { data: queueData, error: queueError } = await supabase
+        .rpc('next_queue_ticket_json', {
+          p_room_id: room.room_code,
+          p_room_name: room.room_name,
+          p_patient_type: patientType,
+          p_patient_id: patientType === 'new' ? null : patientId,
+          p_patient_name: patientName || null,
+          p_priority: patientType === 'appointment' ? 1 : 0,
+          p_doctor_name: appointmentData ? appointmentData.doctor_name : null,
+          p_department: room.department || null,
+          p_appointment_time: appointmentData ? appointmentData.appointment_time : null,
+          p_appointment_type: appointmentData ? appointmentData.appointment_type : null,
+          p_estimated_wait_time: calculateEstimatedWaitTime(room.room_code),
+          p_original_room: patientType === 'new' ? null : room.room_name,
+          p_triage_level: 'non_urgent',
+          p_prefix: prefix
+        });
 
-      const createdQueue = await Queue.create(queueData);
-      console.log('createdQueue', createdQueue);
-      const ticket = Array.isArray(createdQueue) ? createdQueue[0] : createdQueue;
+      if (queueError) {
+        console.error('Error calling next_queue_ticket_json:', queueError);
+        throw new Error('เกิดข้อผิดพลาดในการสร้างหมายเลขคิว');
+      }
+
+      const ticket = queueData;
       setGeneratedTicket(ticket);
       
       // Reset print states for new ticket
@@ -529,7 +559,10 @@ export default function TicketKiosk() {
             <div id="printable-area" className="print:block w-full">
               {/* Ticket details */}
               <div className="print:block w-full">
-                <TicketPreview ticket={generatedTicket} />
+                <TicketPreview 
+              ticket={generatedTicket} 
+              queueSettings={queueSettings} 
+            />
               </div>
               {/* QR Code */}
               <div className="print:block w-full">

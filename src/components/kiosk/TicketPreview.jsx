@@ -16,7 +16,7 @@ const patientTypeColors = {
   appointment: 'bg-green-100 text-green-800'
 };
 
-export default function TicketPreview({ ticket }) {
+export default function TicketPreview({ ticket, queueSettings }) {
   // ป้องกัน null
   if (!ticket) return <div className="text-center text-red-500">ไม่พบข้อมูลคิว</div>;
 
@@ -41,6 +41,30 @@ export default function TicketPreview({ ticket }) {
     ? `${ticket.estimated_wait_time} นาที`
     : '-';
 
+  // Get the correct prefix based on patient type
+  const getPatientPrefix = () => {
+    if (!queueSettings?.ticket_format) return '';
+    
+    switch(ticket.patient_type) {
+      case 'new':
+        return queueSettings.ticket_format.new_patient_prefix || 'N';
+      case 'returning':
+        return queueSettings.ticket_format.returning_patient_prefix || 'R';
+      case 'appointment':
+        return queueSettings.ticket_format.appointment_prefix || 'A';
+      default:
+        return '';
+    }
+  };
+
+  // Format the queue number with the correct prefix
+  const formatQueueNumber = () => {
+    if (!ticket.queue_number) return '-';
+    console.log(ticket.queue_number);
+    const prefix = getPatientPrefix();
+    return `${String(ticket.queue_number).padStart(3, '0')}`;
+  };
+
   // ประเภทผู้ป่วย (badge)
   const patientTypeText = patientTypeLabels[ticket.patient_type] || ticket.patient_type || '-';
   const patientTypeColor = patientTypeColors[ticket.patient_type] || 'bg-gray-100 text-gray-800';
@@ -57,7 +81,7 @@ export default function TicketPreview({ ticket }) {
         {/* Queue Number */}
         <div className="text-center">
           <div className="w-fit h-20 p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-2 shadow-md">
-            <p className="text-3xl font-bold text-white">{ticket.queue_number || '-'}</p>
+            <p className="text-3xl font-bold text-white">{formatQueueNumber()}</p>
           </div>
           <Badge className={`${patientTypeColor} text-sm`}>
             {patientTypeText}

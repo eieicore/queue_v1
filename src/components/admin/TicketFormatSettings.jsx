@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,18 +6,30 @@ import { Label } from '@/components/ui/label';
 import { Save, Ticket } from 'lucide-react';
 
 export default function TicketFormatSettings({ settings, onSave, isSaving }) {
-  const [ticketFormat, setTicketFormat] = useState(settings?.ticket_format || {
-    new_patient_prefix: 'N',
-    returning_patient_prefix: 'R',
-    appointment_prefix: 'A'
+  const [ticketFormat, setTicketFormat] = useState({
+    new_patient_prefix: settings?.ticket_format?.new_patient_prefix || 'N',
+    returning_patient_prefix: settings?.ticket_format?.returning_patient_prefix || 'R',
+    appointment_prefix: settings?.ticket_format?.appointment_prefix || 'A'
   });
 
   const handleSave = () => {
     onSave({
       ...settings,
-      ticket_format: ticketFormat
+      ticket_format: {
+        ...settings.ticket_format,
+        ...ticketFormat
+      }
     });
   };
+
+  useEffect(() => {
+    if (settings?.ticket_format) {
+      setTicketFormat(prev => ({
+        ...prev,
+        ...settings.ticket_format
+      }));
+    }
+  }, [settings?.ticket_format]);
 
   return (
     <Card className="bg-white/80 backdrop-blur-sm border-slate-200 shadow-lg">
@@ -41,7 +53,7 @@ export default function TicketFormatSettings({ settings, onSave, isSaving }) {
               maxLength={1}
               className="text-center text-lg font-bold"
             />
-            <p className="text-sm text-slate-500">ตัวอย่าง: {ticketFormat.new_patient_prefix}001</p>
+            {/* <p className="text-sm text-slate-500">ตัวอย่าง: {ticketFormat.new_patient_prefix}001</p> */}
           </div>
 
           <div className="space-y-2">
@@ -56,7 +68,7 @@ export default function TicketFormatSettings({ settings, onSave, isSaving }) {
               maxLength={1}
               className="text-center text-lg font-bold"
             />
-            <p className="text-sm text-slate-500">ตัวอย่าง: {ticketFormat.returning_patient_prefix}001</p>
+            {/* <p className="text-sm text-slate-500">ตัวอย่าง: {ticketFormat.returning_patient_prefix}001</p> */}
           </div>
 
           <div className="space-y-2">
@@ -71,7 +83,7 @@ export default function TicketFormatSettings({ settings, onSave, isSaving }) {
               maxLength={1}
               className="text-center text-lg font-bold"
             />
-            <p className="text-sm text-slate-500">ตัวอย่าง: {ticketFormat.appointment_prefix}001</p>
+            {/* <p className="text-sm text-slate-500">ตัวอย่าง: {ticketFormat.appointment_prefix}001</p> */}
           </div>
         </div>
 
@@ -80,21 +92,21 @@ export default function TicketFormatSettings({ settings, onSave, isSaving }) {
           <div className="grid grid-cols-3 gap-4 text-sm">
             <div className="text-center">
               <div className="bg-purple-100 text-purple-800 px-3 py-2 rounded font-bold">
-                A{ticketFormat.new_patient_prefix}001
+                {ticketFormat.new_patient_prefix}001
               </div>
-              <p className="text-slate-600 mt-1">ห้อง A - ผู้ป่วยใหม่</p>
+              {/* <p className="text-slate-600 mt-1">ห้อง A - ผู้ป่วยใหม่</p> */}
             </div>
             <div className="text-center">
               <div className="bg-blue-100 text-blue-800 px-3 py-2 rounded font-bold">
-                B{ticketFormat.returning_patient_prefix}001
+                {ticketFormat.returning_patient_prefix}001
               </div>
-              <p className="text-slate-600 mt-1">ห้อง B - ผู้ป่วยเก่า</p>
+              {/* <p className="text-slate-600 mt-1">ห้อง B - ผู้ป่วยเก่า</p> */}
             </div>
             <div className="text-center">
               <div className="bg-green-100 text-green-800 px-3 py-2 rounded font-bold">
-                C{ticketFormat.appointment_prefix}001
+                {ticketFormat.appointment_prefix}001
               </div>
-              <p className="text-slate-600 mt-1">ห้อง C - นัดหมาย</p>
+              {/* <p className="text-slate-600 mt-1">ห้อง C - นัดหมาย</p> */}
             </div>
           </div>
         </div>

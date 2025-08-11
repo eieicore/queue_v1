@@ -133,14 +133,110 @@ export const Room = {
 
 // --- QueueSettings ---
 export const QueueSettings = {
-  list: async () => getLocal('queue_settings'),
+  list: async () => {
+    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
+    try {
+      const res = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/queue_settings?select=*', {
+        headers: {
+          'apikey': API_KEY,
+          'Authorization': `Bearer ${API_KEY}`
+        }
+      });
+      const data = await res.json();
+      if (data.length > 0) {
+        return data;
+      } else {
+        // Create a default settings object with a temporary ID
+        const defaultSettings = {
+          id: 'default-settings',
+          ticket_format: {
+            new_patient_prefix: 'N',
+            returning_patient_prefix: 'R',
+            appointment_prefix: 'A'
+          },
+          voice_announcements: true,
+          auto_skip_timeout: 5,
+          email_notifications: false,
+          working_hours: {
+            monday: { open: '08:00', close: '17:00' },
+            tuesday: { open: '08:00', close: '17:00' },
+            wednesday: { open: '08:00', close: '17:00' },
+            thursday: { open: '08:00', close: '17:00' },
+            friday: { open: '08:00', close: '17:00' },
+            saturday: { open: '08:00', close: '12:00' },
+            sunday: { open: '00:00', close: '00:00' }
+          },
+          actions: 'default',
+          created_at: new Date().toISOString()
+        };
+        return [defaultSettings];
+      }
+    } catch (error) {
+      console.error('Error fetching queue settings:', error);
+      return [];
+    }
+  },
   create: async (data) => {
-    setLocal('queue_settings', [data]);
-    return data;
+    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
+    const res = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/queue_settings', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': API_KEY,
+        'Authorization': `Bearer ${API_KEY}`,
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify(data)
+    });
+    return await res.json();
   },
   update: async (id, data) => {
-    setLocal('queue_settings', [data]);
-    return data;
+    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
+    
+    try {
+      // First, check if the record exists
+      const checkRes = await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/queue_settings?id=eq.${id}`, {
+        headers: {
+          'apikey': API_KEY,
+          'Authorization': `Bearer ${API_KEY}`
+        }
+      });
+      
+      const existingRecords = await checkRes.json();
+      
+      if (existingRecords && existingRecords.length > 0) {
+        // Update existing record
+        const res = await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/queue_settings?id=eq.${id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': API_KEY,
+            'Authorization': `Bearer ${API_KEY}`,
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        return result;
+      } else {
+        // If no record exists with this ID, create a new one
+        const res = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/queue_settings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': API_KEY,
+            'Authorization': `Bearer ${API_KEY}`,
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify({ ...data, id })
+        });
+        const result = await res.json();
+        return result;
+      }
+    } catch (error) {
+      console.error('Error in QueueSettings.update:', error);
+      throw error;
+    }
   }
 };
 
