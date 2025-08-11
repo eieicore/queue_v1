@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useContext, useRef } from 'react';
+import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import { Queue, Room } from '@/api/entities';
 import { Badge } from '@/components/ui/badge';
 import { Monitor, Activity, User, Clock, Volume2, Users } from 'lucide-react'; // Added Users icon
@@ -66,47 +66,135 @@ export default function MonitorDisplay() {
     return () => clearInterval(pageInterval);
   }, [rooms]);
 
+  // Track if speech is currently in progress
+  const isSpeaking = useRef(false);
+  const pendingAnnouncements = useRef([]);
+  const currentRoomAnnouncement = useRef(null);
+
+  // Process the next pending announcement
+  const processNextAnnouncement = useCallback(() => {
+    if (isSpeaking.current || pendingAnnouncements.current.length === 0) return;
+
+    const { queue, roomName, announceKey } = pendingAnnouncements.current[0];
+    const now = Date.now();
+    
+    // Update last announced time
+    lastAnnouncedQueue.current[queue.room_id] = { 
+      announceKey,
+      lastAnnounced: now
+    };
+    
+    // Set current room announcement
+    currentRoomAnnouncement.current = queue.room_id;
+    
+    // Get the room name in the selected language
+    const room = rooms.find(r => r.room_code === queue.room_id);
+    const localizedRoomName = room ? (room.room_names?.[selectedLanguage] || room.room_name || queue.room_id) : queue.room_id;
+    
+    // Create and speak the announcement based on selected language
+    let announcementText = '';
+    switch(selectedLanguage) {
+      case 'th':
+        announcementText = `ขอเชิญคิว ${queue.queue_number} เข้ารับบริการที่ ${localizedRoomName}`;
+        break;
+      case 'zh':
+        announcementText = `请${queue.queue_number}号到${localizedRoomName}`;
+        break;
+      default: // en
+        announcementText = `Queue number ${queue.queue_number}, please proceed to ${localizedRoomName}`;
+    }
+    
+    const msg = new window.SpeechSynthesisUtterance(announcementText);
+    msg.lang = LANGUAGE_VOICES[selectedLanguage]?.code || 'th-TH';
+    
+    // Set up event handlers for the speech
+    msg.onstart = () => {
+      isSpeaking.current = true;
+      console.log(`Started announcing queue ${queue.queue_number} for room ${queue.room_id}`);
+    };
+    
+    msg.onend = msg.onerror = () => {
+      isSpeaking.current = false;
+      currentRoomAnnouncement.current = null;
+      // Remove the processed announcement
+      pendingAnnouncements.current.shift();
+      // Process next announcement after a delay
+      setTimeout(processNextAnnouncement, 2000); // 2 second delay before next announcement
+    };
+    
+    // Cancel any ongoing speech and speak the new announcement
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(msg);
+    
+  }, [selectedLanguage, rooms]);
+
   // Mark all current queues as announced the first time servingQueues is populated
   useEffect(() => {
     if (!hasMarkedInitial.current && servingQueues.length > 0) {
       servingQueues.forEach(queue => {
         if (queue && queue.queue_number && queue.room_id) {
           const announceKey = `${queue.queue_number}:${queue.called_at || ''}`;
-          lastAnnouncedQueue.current[queue.room_id] = { announceKey };
+          lastAnnouncedQueue.current[queue.room_id] = { 
+            announceKey,
+            lastAnnounced: Date.now()
+          };
         }
       });
       hasMarkedInitial.current = true;
     }
   }, [servingQueues]);
 
+  // Handle queue announcements
   useEffect(() => {
     if (!hasMarkedInitial.current) return; // Skip announcements on first load
-    // ประกาศเสียงสำหรับแต่ละห้องที่มีคิวใหม่ถูกเรียกหรือเรียกซ้ำ (called_at เปลี่ยน)
+    
+    // Process each queue that needs to be announced
     servingQueues.forEach((queue) => {
       if (!queue || !queue.queue_number || !queue.room_id) return;
+      
+      // Skip if this queue is already being announced
+      if (currentRoomAnnouncement.current === queue.room_id) return;
+      
       const announceKey = `${queue.queue_number}:${queue.called_at || ''}`;
-
       const lastAnnounced = lastAnnouncedQueue.current[queue.room_id];
-      // Announce ONLY if queue/called_at changed (not language)
-      if (!lastAnnounced || lastAnnounced.announceKey !== announceKey) {
-
+      const now = Date.now();
+      
+      // Only announce if this is a new queue or the called_at timestamp has changed
+      const shouldAnnounce = !lastAnnounced || lastAnnounced.announceKey !== announceKey;
+      
+      if (shouldAnnounce) {
         const room = rooms.find(r => r.room_code === queue.room_id);
         const roomName = room ? (room.room_names?.[selectedLanguage] || room.room_name || queue.room_id) : queue.room_id;
-        const msg = new window.SpeechSynthesisUtterance(
-          selectedLanguage === 'th'
-            ? `ขอเชิญคิว ${queue.queue_number} เข้ารับบริการที่ ${roomName}`
-            : selectedLanguage === 'en'
-              ? `Queue number ${queue.queue_number}, please proceed to ${roomName}`
-              : `Queue number ${queue.queue_number}, please proceed to ${roomName}`
-              // : `${queue.queue_number}号，请到${roomName}`
+        
+        // Check if this announcement is already in the pending queue
+        const isAlreadyInQueue = pendingAnnouncements.current.some(
+          item => item.queue.room_id === queue.room_id && 
+                 item.announceKey === announceKey
         );
-        msg.lang = LANGUAGE_VOICES[selectedLanguage]?.code || 'th-TH';
-        window.speechSynthesis.speak(msg);
-        lastAnnouncedQueue.current[queue.room_id] = { announceKey };
+        
+        if (!isAlreadyInQueue) {
+          // Clear any existing announcements for this room
+          pendingAnnouncements.current = pendingAnnouncements.current.filter(
+            item => item.queue.room_id !== queue.room_id
+          );
+          
+          // Add new announcement to the queue
+          pendingAnnouncements.current.push({
+            queue,
+            roomName,
+            announceKey
+          });
+          
+          console.log(`Added queue ${queue.queue_number} for room ${queue.room_id} to announcement queue`);
+          
+          // Process the queue if not already processing
+          if (!isSpeaking.current) {
+            processNextAnnouncement();
+          }
+        }
       }
     });
-    // *** Do NOT delete lastAnnouncedQueue entries when queues disappear ***
-  }, [servingQueues, rooms, selectedLanguage]);
+  }, [servingQueues, rooms, selectedLanguage, processNextAnnouncement]);
 
   const loadData = async () => {
     try {

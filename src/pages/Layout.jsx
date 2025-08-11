@@ -148,11 +148,11 @@ export default function Layout({ children }) {
                     <div className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
                     <span className="text-sm text-slate-600">System Online</span>
                   </div>
-                  <div className="flex items-center gap-3">
+                  {/* <div className="flex items-center gap-3">
                     <Bell className="w-4 h-4 text-slate-400" />
                     <span className="text-sm text-slate-600">Notifications</span>
                     <Badge variant="secondary" className="ml-auto">3</Badge>
-                  </div>
+                  </div> */}
                 </div>
               </SidebarGroupContent>
             </SidebarGroup>

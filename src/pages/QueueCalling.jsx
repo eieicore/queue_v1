@@ -30,6 +30,8 @@ function QueueCallingContent() {
   const [lastAction, setLastAction] = useState(null);
   const { selectedLanguage, setSelectedLanguage } = useContext(LanguageContext);
   const [isTransferring, setIsTransferring] = useState(false);
+  const [isCallingQueue, setIsCallingQueue] = useState(false);
+  const [currentQueueNumber, setCurrentQueueNumber] = useState(null);
   const announcingRef = useRef(false); // ป้องกันการประกาศซ้อน
 
   useEffect(() => {
@@ -119,28 +121,36 @@ function QueueCallingContent() {
       return;
     }
 
-    const nextQueue = waitingQueues[0];
-    
-    if (!nextQueue.qr_code) {
-      console.error('Queue object missing id:', nextQueue);
-      setLastAction({ type: 'error', message: 'ไม่พบรหัสคิว (id) ของคิวนี้' });
+    await callSpecificQueue(waitingQueues[0]);
+  };
+
+  const callSpecificQueue = async (queue) => {
+    if (!queue?.qr_code) {
+      console.error('Queue object missing id:', queue);
+      setLastAction({ type: 'error', message: 'ไม่พบข้อมูลคิวที่ถูกต้อง' });
       return;
     }
 
+    setIsCallingQueue(true);
+    setCurrentQueueNumber(queue.queue_number);
+
     try {
-      await Queue.update(nextQueue.qr_code, {
+      await Queue.update(queue.qr_code, {
         status: 'serving',
         called_at: new Date().toISOString()
       });
       
       setLastAction({ 
         type: 'success', 
-        message: `เรียกคิว ${nextQueue.queue_number} แล้ว` 
+        message: `เรียกคิว ${queue.queue_number} แล้ว` 
       });
       
       setTimeout(loadData, 500); // Wait 500ms before reload to ensure Supabase update
     } catch (error) {
       setLastAction({ type: 'error', message: 'ไม่สามารถเรียกคิวได้' });
+    } finally {
+      setIsCallingQueue(false);
+      setCurrentQueueNumber(null);
     }
   };
 
@@ -382,10 +392,13 @@ function QueueCallingContent() {
 
             <div className="space-y-6 h-auto lg:col-span-2">
               <WaitingList 
-                waitingQueues={getWaitingQueues()}
-                selectedRoom={selectedRoom}
+                waitingQueues={getWaitingQueues()} 
+                selectedRoom={selectedRoom} 
                 rooms={rooms}
                 selectedLanguage={selectedLanguage}
+                onCallQueue={callSpecificQueue}
+                isCalling={isCallingQueue}
+                currentQueueNumber={currentQueueNumber}
               />
              
           </div>

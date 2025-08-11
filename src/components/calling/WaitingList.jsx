@@ -18,7 +18,15 @@ const triageStyles = {
   non_urgent: { label: 'ทั่วไป (ขาว)', color: 'bg-slate-200 text-slate-800' }
 };
 
-export default function WaitingList({ waitingQueues, selectedRoom, rooms, selectedLanguage }) {
+export default function WaitingList({ 
+  waitingQueues, 
+  selectedRoom, 
+  rooms, 
+  selectedLanguage, 
+  onCallQueue, 
+  isCalling = false,
+  currentQueueNumber = null 
+}) {
   const [currentTime, setCurrentTime] = useState(Date.now());
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(Date.now()), 1000);
@@ -88,14 +96,30 @@ export default function WaitingList({ waitingQueues, selectedRoom, rooms, select
                         <div className={`w-10 h-10 ${triageInfo.color} rounded-lg flex items-center justify-center font-bold`}>
                           {index + 1}
                         </div>
-                        <div>
-                          <p className="font-medium text-slate-900">{queue.queue_number}</p>
-                          <Badge
-                            variant="outline"
-                            className={`${patientTypeColors[queue.patient_type]} text-xs`}
+                        <div className="flex items-center gap-2">
+                          <div>
+                            <p className="font-medium text-slate-900">{queue.queue_number}</p>
+                            <Badge
+                              variant="outline"
+                              className={`${patientTypeColors[queue.patient_type]} text-xs`}
+                            >
+                              {getPatientTypeLabel(queue.patient_type)}
+                            </Badge>
+                          </div>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onCallQueue(queue);
+                            }}
+                            disabled={isCalling && currentQueueNumber === queue.queue_number}
+                            className={`ml-2 px-3 py-1 text-sm rounded-md transition-colors ${
+                              isCalling && currentQueueNumber === queue.queue_number 
+                                ? 'bg-blue-400 text-white cursor-not-allowed' 
+                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                            }`}
                           >
-                            {getPatientTypeLabel(queue.patient_type)}
-                          </Badge>
+                            {isCalling && currentQueueNumber === queue.queue_number ? 'กำลังเรียก...' : 'เรียกคิว'}
+                          </button>
                         </div>
                       </div>
                       <Badge className={triageInfo.color}>{triageInfo.label}</Badge>
