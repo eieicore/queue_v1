@@ -60,9 +60,12 @@ export default function Layout({ children }) {
   // If loaded and no user, kick to login
   React.useEffect(() => {
     if (!isLoadingUser && !user) {
-      navigate("/");
+      const isTicketKioskRoute = location.pathname.toLowerCase() === createPageUrl("TicketKiosk").toLowerCase();
+      if (!isTicketKioskRoute) {
+        navigate("/");
+      }
     }
-  }, [isLoadingUser, user, navigate]);
+  }, [isLoadingUser, user, navigate, location.pathname]);
 
   const handleLogout = () => {
     localStorage.removeItem("user");
@@ -75,11 +78,16 @@ export default function Layout({ children }) {
     navigate(u.access_level === "admin" ? "/dashboard" : "/dashboard");
   };
 
-  const hasPermission = (level) => {
+  const hasPermission = (requiredLevel) => {
     if (!user) return false;
-    if (user.access_level === "admin") return true;
-    const map = { viewer: 1, staff: 2, admin: 3 };
-    return map[user.access_level] >= map[level];
+    const levelHierarchy = { viewer: 1, staff: 2, admin: 3 };
+    const userLevel = String(user.access_level || 'viewer').toLowerCase();
+    console.log(userLevel);
+    if (userLevel === 'admin') return true;
+    const userValue = levelHierarchy[userLevel] ?? 0;
+    const requiredValue = levelHierarchy[String(requiredLevel || 'viewer').toLowerCase()] ?? 1;
+    console.log(userValue, requiredValue);
+    return userValue >= requiredValue;
   };
 
 
@@ -89,10 +97,24 @@ export default function Layout({ children }) {
 
   // If not logged in, show LoginGuard
   if (!user) {
+    const isTicketKioskRoute = location.pathname.toLowerCase() === createPageUrl("TicketKiosk").toLowerCase();
+    if (isTicketKioskRoute) {
+      // Public access for TicketKiosk without sidebar/header when not logged in
+      return (
+        <div className="min-h-screen flex w-full bg-gradient-to-br from-slate-50 to-blue-50">
+          <main className="flex flex-1 flex-col">
+            <div className="flex-1 overflow-auto">
+              {children}
+            </div>
+          </main>
+        </div>
+      );
+    }
     return <LoginGuard onLoginSuccess={handleLoginSuccess} />;
   }
 
   const filteredNav = navigationItems.filter(item => hasPermission(item.requiredLevel));
+  console.log(filteredNav);
 
   return (
     <SidebarProvider>
@@ -169,9 +191,9 @@ export default function Layout({ children }) {
                     {user.full_name || user.username}
                   </p>
                   <p className="truncate text-xs text-slate-500">
-                    {user.access_level === 'admin'
+                    {String(user.access_level || '').toLowerCase() === 'admin'
                       ? 'ผู้ดูแลระบบ'
-                      : user.access_level === 'staff'
+                      : String(user.access_level || '').toLowerCase() === 'staff'
                       ? 'เจ้าหน้าที่'
                       : 'ผู้ใช้งาน'}
                   </p>

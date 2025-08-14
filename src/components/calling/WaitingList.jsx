@@ -106,7 +106,7 @@ export default function WaitingList({
                               {getPatientTypeLabel(queue.patient_type)}
                             </Badge>
                           </div>
-                          <button 
+                          {/* <button 
                             onClick={(e) => {
                               e.stopPropagation();
                               onCallQueue(queue);
@@ -119,7 +119,7 @@ export default function WaitingList({
                             }`}
                           >
                             {isCalling && currentQueueNumber === queue.queue_number ? 'กำลังเรียก...' : 'เรียกคิว'}
-                          </button>
+                          </button> */}
                         </div>
                       </div>
                       <Badge className={triageInfo.color}>{triageInfo.label}</Badge>
