@@ -4,6 +4,11 @@ module.exports = {
     content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
   theme: {
   	extend: {
+    	fontFamily: {
+    		sans: ['Noto Sans Thai Looped', 'sans-serif'],
+    		serif: ['Noto Sans Thai Looped', 'sans-serif'],
+    		mono: ['Noto Sans Thai Looped', 'sans-serif'],
+    	},
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
