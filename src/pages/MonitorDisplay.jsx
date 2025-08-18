@@ -24,7 +24,9 @@ export default function MonitorDisplay() {
   const { selectedLanguage: contextLanguage } = useContext(LanguageContext);
   const [selectedLanguage, setSelectedLanguage] = useState(() => localStorage.getItem('queue_selected_language') || contextLanguage || 'th');
   
-  const ROOMS_PER_PAGE = 2; // Show 2 rooms per page
+  // Detect screen orientation and set rooms per page accordingly
+  const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
+  const ROOMS_PER_PAGE = isPortrait ? 1 : 2; // Show 1 room in portrait, 2 in landscape
 
   // Listen for language changes from other tabs (QueueCalling)
   useEffect(() => {
@@ -43,10 +45,24 @@ export default function MonitorDisplay() {
   }, [contextLanguage]);
 
   useEffect(() => {
+    // Handle orientation change
+    const handleResize = () => {
+      setIsPortrait(window.innerHeight > window.innerWidth);
+    };
+    
+    // Initial check
+    handleResize();
+    
+    // Add event listener
+    window.addEventListener('resize', handleResize);
+    
+    // Load data
     loadData();
-    const interval = setInterval(loadData, 3000); // 3 วินาที
+    const interval = setInterval(loadData, 3000); // 3 seconds
     const clockInterval = setInterval(() => setCurrentTime(new Date()), 1000);
+    
     return () => {
+      window.removeEventListener('resize', handleResize);
       clearInterval(interval);
       clearInterval(clockInterval);
     };
@@ -251,8 +267,112 @@ export default function MonitorDisplay() {
     }
   };
   
+  // Portrait mode pagination state
+  const [currentPortraitPage, setCurrentPortraitPage] = useState(0);
+  const ROOMS_PER_PAGE_PORTRAIT = 4; // Show 4 rooms per page in portrait mode
+  
+  // Auto-rotate pages in portrait mode
+  useEffect(() => {
+    if (!isPortrait) return;
+    
+    const sortedRooms = [...rooms].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+    const totalPages = Math.ceil(sortedRooms.length / ROOMS_PER_PAGE_PORTRAIT);
+    
+    if (totalPages <= 1) return; // No need to rotate if only one page
+    
+    const interval = setInterval(() => {
+      setCurrentPortraitPage(prev => (prev + 1) % totalPages);
+    }, 5000); // Change page every 5 seconds
+    
+    return () => clearInterval(interval);
+  }, [isPortrait, rooms]);
+
+  // Render room list for portrait mode
+  const renderPortraitRoomList = () => {
+    const sortedRooms = [...rooms].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+    const totalPages = Math.ceil(sortedRooms.length / ROOMS_PER_PAGE_PORTRAIT);
+    const currentRooms = sortedRooms.slice(
+      currentPortraitPage * ROOMS_PER_PAGE_PORTRAIT, 
+      (currentPortraitPage + 1) * ROOMS_PER_PAGE_PORTRAIT
+    );
+    
+    return (
+      <div className="w-full h-[calc(100vh-120px)] flex flex-col">
+        <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-md overflow-hidden flex-1 flex flex-col">
+          <div className="grid grid-cols-2 bg-blue-700 text-white font-semibold text-center py-5">
+            <div className="text-xl">ห้องตรวจ</div>
+            <div className="text-xl">คิวที่กำลังเรียก</div>
+          </div>
+          <div className="flex-1 grid grid-rows-4 divide-y divide-gray-100">
+          {currentRooms.map((room, index) => {
+            const queue = getQueueForRoom(room.room_code);
+            const waitingCount = getWaitingCount(room.room_code);
+            
+            return (
+              <div 
+                key={room.room_code || room.id}
+                className={`grid grid-cols-2 hover:bg-blue-50/50 transition-colors ${
+                  index < currentRooms.length - 1 ? 'border-b border-gray-100' : ''
+                }`}
+              >
+                <div className="p-5 border-r border-gray-100 flex flex-col justify-center h-full">
+                  <div className="font-bold text-gray-800 text-2xl">{getRoomName(room, 'th')}</div>
+                  <div className="text-gray-600 text-lg">{getRoomName(room, 'en')}</div>
+                  <div className="mt-3">
+                    <Badge variant="outline" className="text-base border-blue-200 bg-blue-50 text-blue-700 px-3 py-1">
+                      {room.department}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="p-5 flex flex-col items-center justify-center h-full">
+                  {queue ? (
+                    <>
+                      <div className="text-5xl font-bold text-blue-800">{queue.queue_number}</div>
+                      <div className="text-base text-gray-600 mt-2">
+                        กำลังให้บริการ • {getServiceDurationText(queue.called_at)}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-4xl text-gray-400">-</div>
+                  )}
+                  {waitingCount > 0 && (
+                    <div className="text-base text-gray-700 mt-3 font-medium bg-blue-50 px-3 py-1 rounded-full">
+                      รออีก {waitingCount} คิว
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          </div>
+          
+          {/* Page Indicator */}
+          {totalPages > 1 && (
+            <div className="mt-auto py-3 bg-gray-50 border-t border-gray-100">
+              <div className="flex justify-center items-center gap-2">
+                {Array.from({ length: totalPages }, (_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentPortraitPage(i)}
+                    className={`w-2.5 h-2.5 rounded-full transition-all ${
+                      i === currentPortraitPage ? 'bg-blue-600 scale-125' : 'bg-gray-300'
+                    }`}
+                    aria-label={`หน้า ${i + 1}`}
+                  />
+                ))}
+                <span className="text-sm text-gray-500 ml-2">
+                  หน้า {currentPortraitPage + 1}/{totalPages}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white text-gray-800 font-sans overflow-hidden relative">
+    <div className={`min-h-screen bg-gradient-to-br from-blue-50 to-white text-gray-800 font-sans overflow-hidden relative flex flex-col ${isPortrait ? 'portrait-mode' : 'landscape-mode'}`}>
       {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -inset-[10px] opacity-30">
@@ -263,7 +383,7 @@ export default function MonitorDisplay() {
       </div>
 
       {/* Header */}
-      <header className="relative z-10 p-6 border-b border-blue-100 bg-white/80 backdrop-blur-sm shadow-sm">
+      <header className={`relative z-10 p-4 ${isPortrait ? 'py-3' : 'p-6'} border-b border-blue-100 bg-white/80 backdrop-blur-sm shadow-sm`}>
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-6">
             <div className="relative">
@@ -275,7 +395,7 @@ export default function MonitorDisplay() {
               </div>
             </div>
             <div>
-              <h1 className="text-5xl font-bold text-blue-800 tracking-wide">
+              <h1 className={`${isPortrait ? 'text-3xl' : 'text-5xl'} font-bold text-blue-800 tracking-wide`}>
                 Queue Monitor
               </h1>
               <p className="text-blue-600 text-xl mt-2">แสดงสถานะคิวแบบเรียลไทม์</p>
@@ -297,36 +417,40 @@ export default function MonitorDisplay() {
         </div>
       </header>
       
-      {/* Main Grid */}
-      <main className="relative z-10 p-8 max-w-7xl mx-auto">
-        {/* Page Indicator */}
-        {(() => {
-          const sortedRooms = [...rooms].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
-          const totalPages = Math.ceil(sortedRooms.length / ROOMS_PER_PAGE);
-          const currentRooms = sortedRooms.slice(currentPage * ROOMS_PER_PAGE, (currentPage + 1) * ROOMS_PER_PAGE);
-          
-          return (
-            <>
-              {totalPages > 1 && (
-                <div className="flex justify-center items-center mb-8">
-                  <div className="flex items-center gap-4 bg-white/80 backdrop-blur-md rounded-full px-6 py-3 border border-blue-100 shadow-sm">
-                    <span className="text-blue-700 text-sm font-medium">หน้า</span>
-                    <div className="flex gap-2">
-                      {Array.from({ length: totalPages }, (_, i) => (
-                        <div
-                          key={i}
-                          className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                            i === currentPage ? 'bg-blue-600 scale-125' : 'bg-blue-200'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                    <span className="text-blue-700 text-sm font-medium">{currentPage + 1}/{totalPages}</span>
-                  </div>
-                </div>
-              )}
+      {/* Main Content */}
+      <main className={`relative z-10 ${isPortrait ? 'flex-1' : 'p-8 max-w-7xl mx-auto'}`}>
+        {isPortrait ? (
+          renderPortraitRoomList()
+        ) : (
+          <>
+            {/* Page Indicator for Landscape */}
+            {(() => {
+              const sortedRooms = [...rooms].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+              const totalPages = Math.ceil(sortedRooms.length / ROOMS_PER_PAGE);
+              const currentRooms = sortedRooms.slice(currentPage * ROOMS_PER_PAGE, (currentPage + 1) * ROOMS_PER_PAGE);
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 min-h-[600px]">
+              return (
+                <>
+                  {totalPages > 1 && (
+                    <div className="flex justify-center items-center mb-8">
+                      <div className="flex items-center gap-4 bg-white/80 backdrop-blur-md rounded-full px-6 py-3 border border-blue-100 shadow-sm">
+                        <span className="text-blue-700 text-sm font-medium">หน้า</span>
+                        <div className="flex gap-2">
+                          {Array.from({ length: totalPages }, (_, i) => (
+                            <div
+                              key={i}
+                              className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                                i === currentPage ? 'bg-blue-600 scale-125' : 'bg-blue-200'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-blue-700 text-sm font-medium">{currentPage + 1}/{totalPages}</span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="grid grid-cols-2 gap-8 min-h-[600px]">
                 {currentRooms.map(room => {
                   const queue = getQueueForRoom(room.room_code);
                   const waitingCount = getWaitingCount(room.room_code);
@@ -339,7 +463,7 @@ export default function MonitorDisplay() {
                 className="group relative"
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-white/80 to-white/60 rounded-3xl blur-sm group-hover:blur-none transition-all duration-300 shadow-lg"></div>
-                <div className="relative flex flex-col h-full bg-white/90 backdrop-blur-sm border border-blue-100 rounded-3xl p-8 hover:bg-white transition-all duration-300 shadow-md hover:shadow-lg">
+                <div className="relative flex flex-col h-full bg-white/90 backdrop-blur-sm border border-blue-100 rounded-3xl p-4 md:p-6 lg:p-8 hover:bg-white transition-all duration-300 shadow-md hover:shadow-lg room-card">
                   
                   {/* Room Header */}
                   <div className="flex-shrink-0">
@@ -443,17 +567,19 @@ export default function MonitorDisplay() {
                     )}
                   </div>
                 </div>
-              </motion.div>
+                    </motion.div>
                   );
                 })}
               </div>
-            </>
-          );
-        })()}
+                </>
+              );
+            })()}
+          </>
+        )}
       </main>
 
       {/* Footer Status Bar */}
-      <footer className="absolute bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-blue-100 p-4 z-50 shadow-inner">
+      <footer className={`fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-blue-100 ${isPortrait ? 'p-2' : 'p-4'} z-50 shadow-inner`}>
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
@@ -496,6 +622,24 @@ export default function MonitorDisplay() {
         }
         .animation-delay-400 {
           animation-delay: 0.4s;
+        }
+        
+        /* Portrait mode specific styles */
+        .portrait-mode {
+          --tw-bg-opacity: 1;
+          background-color: #f8fafc;
+          padding-bottom: 0;
+        }
+        
+        .portrait-mode .room-card {
+          min-height: auto;
+        }
+        
+        .portrait-mode main {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          padding: 0;
         }
         @keyframes blob {
           0% {

@@ -44,7 +44,7 @@ export default function PausedQueues({ pausedQueues, onResume, selectedRoom, roo
   };
 
   return (
-    <Card className="bg-white/80 backdrop-blur-sm border-slate-200 shadow-lg">
+    <Card className="bg-white/80 backdrop-blur-sm border-slate-200 shadow-lg h-full">
       <CardHeader className="border-b border-slate-100">
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center gap-2">
