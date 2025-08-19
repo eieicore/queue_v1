@@ -5,24 +5,23 @@
     <link rel="icon" type="image/png" href="/hospital-building.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MediQueue</title>
-    <script>
-      // Debug log when script is loaded
-      console.log('Loading ResponsiveVoice script...');
-      window.onResponsiveVoiceLoaded = function() {
-        console.log('ResponsiveVoice loaded successfully');
-        console.log('ResponsiveVoice version:', window.responsiveVoice?.version);
-        console.log('Available voices:', window.responsiveVoice?.voices);
-      };
-    </script>
-    <script src="/assets/responsivevoice.js" onload="onResponsiveVoiceLoaded()"></script>
-    <script>
-      // Fallback in case onload doesn't fire
-      setTimeout(function() {
+    <script type="module">
+      // Load responsivevoice as a module
+      import { responsiveVoice } from '/assets/responsivevoice.js';
+      
+      // Assign to window for backward compatibility
+      window.responsiveVoice = responsiveVoice;
+      
+      console.log('ResponsiveVoice loaded successfully');
+      console.log('ResponsiveVoice version:', responsiveVoice.version);
+      console.log('Available voices:', responsiveVoice.voices);
+      
+      // Fallback check
+      setTimeout(() => {
         if (window.responsiveVoice) {
-          console.log('ResponsiveVoice available after timeout');
-          console.log('Available voices:', window.responsiveVoice.voices);
+          console.log('ResponsiveVoice is available');
         } else {
-          console.error('ResponsiveVoice not available after timeout');
+          console.error('Failed to load ResponsiveVoice');
         }
       }, 1000);
     </script>
@@ -30,5 +29,25 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script type="module">
+      // Load responsivevoice as a module
+      import { responsiveVoice } from '/assets/responsivevoice.js';
+      
+      // Assign to window for backward compatibility
+      window.responsiveVoice = responsiveVoice;
+      
+      // Initialize when DOM is ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initResponsiveVoice);
+      } else {
+        initResponsiveVoice();
+      }
+      
+      function initResponsiveVoice() {
+        console.log('ResponsiveVoice loaded successfully');
+        console.log('ResponsiveVoice version:', responsiveVoice.version);
+        console.log('Available voices:', responsiveVoice.voices);
+      }
+    </script>
   </body>
 </html>

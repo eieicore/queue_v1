@@ -3483,3 +3483,15 @@ else
           });
     },
     responsiveVoice = new ResponsiveVoice();
+
+// ES Module export
+export { responsiveVoice };
+
+// CommonJS and AMD support
+if (typeof exports === 'object' && typeof module !== 'undefined') {
+  module.exports = responsiveVoice;
+} else if (typeof define === 'function' && define.amd) {
+  define('responsivevoice', function() { return responsiveVoice; });
+} else {
+  window.responsiveVoice = responsiveVoice;
+}

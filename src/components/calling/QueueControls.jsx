@@ -30,7 +30,7 @@ export default function QueueControls({
           <Button
             onClick={onRepeatCall}
             disabled={!hasCurrentQueue}
-            className="bg-indigo-400 hover:bg-indigo-500 text-white h-12 flex items-center gap-2 font-medium"
+            className="bg-indigo-500 hover:bg-indigo-600 text-white h-12 flex items-center gap-2 font-medium"
           >
             <RotateCcw className="w-5 h-5" />
             เรียกซ้ำ

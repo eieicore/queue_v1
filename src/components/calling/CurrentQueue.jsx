@@ -26,14 +26,30 @@ export default function CurrentQueue({ currentQueue, selectedRoom, rooms, select
   };
 
   const formatTime = (dateString) => {
-    return new Date(dateString).toLocaleTimeString('th-TH', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-      timeZone: 'Asia/Bangkok'
-    });
+    try {
+      console.log("dateString", dateString);
+      
+      // ✅ เพิ่ม 'Z' บอกว่าเป็น UTC
+      const date = new Date(dateString.endsWith("Z") ? dateString : dateString + "Z");
+  
+      if (isNaN(date.getTime())) {
+        console.warn("Invalid date:", dateString);
+        return "";
+      }
+  
+      return date.toLocaleTimeString("th-TH", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone: "Asia/Bangkok",
+      });
+    } catch (err) {
+      console.error("Error formatting time:", err);
+      return "";
+    }
   };
-
+  
+  
   const getServiceDuration = () => {
     if (!currentQueue?.called_at) return 0;
     const end = currentQueue?.completed_at ? new Date(currentQueue.completed_at) : new Date(currentTime);

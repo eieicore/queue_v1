@@ -213,36 +213,50 @@ export default function MonitorDisplay() {
       }
     };
 
-    // Check if ResponsiveVoice is available
-    const rv = window.responsiveVoice || {};
-    const voices = rv.voices || [];
-    
-    // Default fallback voices by language
-    const defaultVoices = {
+    // Default voice mapping for ResponsiveVoice
+    const voiceMap = {
       'th': 'Thai Female',
       'zh': 'Chinese Female',
-      'en': 'UK English Female'
+      'en': 'UK English Female',
+      'ja': 'Japanese Female',
+      'ko': 'Korean Female',
+      'fr': 'French Female',
+      'de': 'Deutsch Female',
+      'es': 'Spanish Female',
+      'it': 'Italian Female',
+      'pt': 'Portuguese Female',
+      'ru': 'Russian Female',
+      'ar': 'Arabic Female',
+      'hi': 'Hindi Female'
     };
+
+    // Get the best available voice for the language
+    let voiceName = voiceMap[language] || 'UK English Female';
     
-    // Try to find a suitable voice for the language
-    let voiceName = defaultVoices[language] || defaultVoices['en'];
-    
-    if (language === 'th') {
-      // First try to find a Thai female voice
-      const thaiFemaleVoice = voices.find(voice => 
-        voice.lang && 
-        voice.lang.toLowerCase().includes('th') && 
-        (voice.gender === 'f' || 
-         voice.name.toLowerCase().includes('female') ||
-         voice.name.toLowerCase().includes('หญิง') ||
-         voice.name.toLowerCase().includes('wanida'))
+    // If ResponsiveVoice is available, try to find the best voice
+    if (window.responsiveVoice) {
+      const rv = window.responsiveVoice;
+      const voices = rv.voices || [];
+      
+      // Try to find a voice that matches the language
+      const langVoices = voices.filter(v => 
+        v.lang && v.lang.toLowerCase().startsWith(language.toLowerCase())
       );
       
-      if (thaiFemaleVoice) {
-        voiceName = thaiFemaleVoice.name;
-        console.log('Found Thai female voice:', voiceName);
+      if (langVoices.length > 0) {
+        // Prefer female voices if available
+        const femaleVoice = langVoices.find(v => 
+          v.gender === 'f' || v.name.toLowerCase().includes('female')
+        );
+        
+        if (femaleVoice) {
+          voiceName = femaleVoice.name;
+        } else {
+          voiceName = langVoices[0].name;
+        }
+        console.log(`Using voice for ${language}:`, voiceName);
       } else {
-        console.warn('Thai female voice not found, using default Thai voice');
+        console.warn(`No voice found for language ${language}, using default:`, voiceName);
       }
     }
     
@@ -280,16 +294,27 @@ export default function MonitorDisplay() {
     
     // Create and speak the announcement based on selected language
     let announcementText = '';
-    switch(selectedLanguage) {
-      case 'th':
-        announcementText = `ขอเชิญคิว ${queue.queue_number} เข้ารับบริการที่ ${localizedRoomName}`;
-        break;
-      case 'zh':
-        announcementText = `请${queue.queue_number}号到${localizedRoomName}`;
-        break;
-      default: // en
-        announcementText = `Queue number ${queue.queue_number}, please proceed to ${localizedRoomName}`;
-    }
+    const queueNumber = queue.queue_number;
+    
+    // More natural announcements for each language
+    const announcements = {
+      'th': `ขอเชิญคิว ${queueNumber} เข้ารับบริการที่ ${localizedRoomName}`, // More natural Thai
+      'zh': `请${queueNumber}号到${localizedRoomName}`, // Natural Chinese
+      'en': `Queue number ${queueNumber}, please proceed to ${localizedRoomName}`, // Natural English
+      'ja': `${queueNumber}番の方は${localizedRoomName}へお越しください`, // Japanese
+      'ko': `${queueNumber}번 고객님, ${localizedRoomName}으로 와 주세요`, // Korean
+      'fr': `Numéro de file d'attente ${queueNumber}, veuillez vous rendre à ${localizedRoomName}`, // French
+      'de': `Warteschlange Nummer ${queueNumber}, bitte gehen Sie zu ${localizedRoomName}`, // German
+      'es': `Número de cola ${queueNumber}, por favor diríjase a ${localizedRoomName}`, // Spanish
+      'it': `Numero di coda ${queueNumber}, si prega di recarsi a ${localizedRoomName}`, // Italian
+      'pt': `Fila número ${queueNumber}, por favor, dirija-se a ${localizedRoomName}`, // Portuguese
+      'ru': `Очередь номер ${queueNumber}, пожалуйста, пройдите в ${localizedRoomName}`, // Russian
+      'ar': `الرقم ${queueNumber}، يرجى التوجه إلى ${localizedRoomName}`, // Arabic
+      'hi': `कतार संख्या ${queueNumber}, कृपया ${localizedRoomName} पर जाएं` // Hindi
+    };
+    
+    // Get the announcement text for the selected language, fallback to English
+    announcementText = announcements[selectedLanguage] || announcements['en'];
     
     // Get voice parameters for the selected language
     const { voice, parameters } = getVoiceParams(selectedLanguage);
