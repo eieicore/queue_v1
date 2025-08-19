@@ -10,7 +10,14 @@ const patientTypeColors = {
   appointment: "bg-emerald-100 text-emerald-800"
 };
 
-export default function PausedQueues({ pausedQueues, onResume, selectedRoom, rooms, selectedLanguage }) {
+export default function PausedQueues({ 
+  pausedQueues, 
+  onResume, 
+  selectedRoom, 
+  rooms, 
+  selectedLanguage, 
+  hasCurrentQueue = false 
+}) {
   const [currentTime, setCurrentTime] = useState(Date.now());
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(Date.now()), 1000);
@@ -77,14 +84,23 @@ export default function PausedQueues({ pausedQueues, onResume, selectedRoom, roo
                         </Badge>
                       </div>
                     </div>
-                    <Button
-                      onClick={() => onResume(queue.qr_code)}
-                      size="sm"
-                      className="bg-green-600 hover:bg-green-700 text-white"
-                    >
-                      <Play className="w-4 h-4 mr-1" />
-                      เรียกกลับ
-                    </Button>
+                    <div className="relative group">
+                      <Button
+                        onClick={() => onResume(queue.qr_code)}
+                        size="sm"
+                        disabled={hasCurrentQueue}
+                        className={`${hasCurrentQueue ? 'bg-green-400' : 'bg-green-600 hover:bg-green-700'} text-white`}
+                      >
+                        <Play className="w-4 h-4 mr-1" />
+                        เรียกกลับ
+                      </Button>
+                      {hasCurrentQueue && (
+                        <div className="absolute z-10 invisible group-hover:visible w-48 bg-gray-800 text-white text-xs rounded py-1 px-2 bottom-full left-1/2 transform -translate-x-1/2 mb-2">
+                          กรุณาจบการให้บริการคิวปัจจุบันก่อน
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-l-transparent border-r-4 border-r-transparent border-t-4 border-t-gray-800"></div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center justify-between text-sm text-slate-600 mt-2">
                     <div className="flex items-center gap-1">

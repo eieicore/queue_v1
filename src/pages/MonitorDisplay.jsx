@@ -25,6 +25,13 @@ export default function MonitorDisplay() {
   const [selectedLanguage, setSelectedLanguage] = useState(() => localStorage.getItem('queue_selected_language') || contextLanguage || 'th');
   const headerRef = useRef(null);
   const [contentHeight, setContentHeight] = useState(null);
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
+  const pendingAnnouncements = useRef([]);
+  
+  // Auto-enable audio on component mount
+  useEffect(() => {
+    handleUserInteraction();
+  }, []);
   
   // Detect screen orientation and set rooms per page accordingly
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
@@ -131,12 +138,129 @@ export default function MonitorDisplay() {
 
   // Track if speech is currently in progress
   const isSpeaking = useRef(false);
-  const pendingAnnouncements = useRef([]);
   const currentRoomAnnouncement = useRef(null);
+  
+  // Initialize audio context and enable audio
+  const handleUserInteraction = useCallback(() => {
+    if (!hasUserInteracted) {
+      setHasUserInteracted(true);
+      console.log('Auto-enabling audio...');
+      
+      // Play a silent audio to enable audio context
+      const silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQ=');
+      silentAudio.volume = 0;
+      
+      const initializeAudio = () => {
+        // Try to speak a test message with ResponsiveVoice
+        if (window.responsiveVoice) {
+          console.log('Initializing ResponsiveVoice...');
+          
+          // Speak with a very short delay to ensure the audio context is ready
+          setTimeout(() => {
+            window.responsiveVoice.speak(' ', 'UK English Female', { 
+              onstart: () => {
+                console.log('Audio context initialized successfully');
+                // Process any pending announcements
+                if (pendingAnnouncements.current?.length > 0) {
+                  console.log('Processing', pendingAnnouncements.current.length, 'pending announcements');
+                  processNextAnnouncement(true);
+                }
+              },
+              volume: 0
+            });
+          }, 100);
+        } else if (window.speechSynthesis) {
+          // Fallback to Web Speech API if ResponsiveVoice is not available
+          console.log('ResponsiveVoice not available, using Web Speech API');
+          const utterance = new window.SpeechSynthesisUtterance(' ');
+          utterance.onstart = () => {
+            console.log('Web Speech API audio context initialized');
+            processNextAnnouncement(true);
+          };
+          window.speechSynthesis.speak(utterance);
+        }
+      };
+      
+      // Play silent audio and initialize audio context
+      silentAudio.play()
+        .then(() => {
+          console.log('Silent audio played successfully');
+          initializeAudio();
+        })
+        .catch(e => {
+          console.warn('Silent audio play failed, trying to initialize anyway:', e);
+          initializeAudio();
+        });
+    }
+  }, [hasUserInteracted]);
+
+  // Get voice parameters based on language
+  const getVoiceParams = useCallback((language) => {
+    // Default parameters for all voices
+    const defaultParams = { 
+      rate: 0.8, 
+      pitch: 1.0, 
+      volume: 1.0,
+      onstart: () => { isSpeaking.current = true; },
+      onend: () => {
+        isSpeaking.current = false;
+        currentRoomAnnouncement.current = null;
+        // Remove the processed announcement and process next
+        if (pendingAnnouncements.current.length > 0) {
+          pendingAnnouncements.current.shift();
+          setTimeout(processNextAnnouncement, 2000); // 2 second delay
+        }
+      }
+    };
+
+    // Check if ResponsiveVoice is available
+    const rv = window.responsiveVoice || {};
+    const voices = rv.voices || [];
+    
+    // Default fallback voices by language
+    const defaultVoices = {
+      'th': 'Thai Female',
+      'zh': 'Chinese Female',
+      'en': 'UK English Female'
+    };
+    
+    // Try to find a suitable voice for the language
+    let voiceName = defaultVoices[language] || defaultVoices['en'];
+    
+    if (language === 'th') {
+      // First try to find a Thai female voice
+      const thaiFemaleVoice = voices.find(voice => 
+        voice.lang && 
+        voice.lang.toLowerCase().includes('th') && 
+        (voice.gender === 'f' || 
+         voice.name.toLowerCase().includes('female') ||
+         voice.name.toLowerCase().includes('หญิง') ||
+         voice.name.toLowerCase().includes('wanida'))
+      );
+      
+      if (thaiFemaleVoice) {
+        voiceName = thaiFemaleVoice.name;
+        console.log('Found Thai female voice:', voiceName);
+      } else {
+        console.warn('Thai female voice not found, using default Thai voice');
+      }
+    }
+    
+    return {
+      voice: voiceName,
+      parameters: defaultParams
+    };
+  }, []);
 
   // Process the next pending announcement
-  const processNextAnnouncement = useCallback(() => {
+  const processNextAnnouncement = useCallback((isInitial = false) => {
     if (isSpeaking.current || pendingAnnouncements.current.length === 0) return;
+    
+    // If user hasn't interacted yet, don't play audio
+    if (!hasUserInteracted && !isInitial) {
+      console.log('Waiting for user interaction before playing audio');
+      return;
+    }
 
     const { queue, roomName, announceKey } = pendingAnnouncements.current[0];
     const now = Date.now();
@@ -167,29 +291,114 @@ export default function MonitorDisplay() {
         announcementText = `Queue number ${queue.queue_number}, please proceed to ${localizedRoomName}`;
     }
     
-    const msg = new window.SpeechSynthesisUtterance(announcementText);
-    msg.lang = LANGUAGE_VOICES[selectedLanguage]?.code || 'th-TH';
+    // Get voice parameters for the selected language
+    const { voice, parameters } = getVoiceParams(selectedLanguage);
     
-    // Set up event handlers for the speech
-    msg.onstart = () => {
+    // Set up event handlers
+    const onStartCallback = () => {
       isSpeaking.current = true;
       console.log(`Started announcing queue ${queue.queue_number} for room ${queue.room_id}`);
+      if (parameters.onstart) parameters.onstart();
     };
     
-    msg.onend = msg.onerror = () => {
+    const onEndCallback = () => {
       isSpeaking.current = false;
       currentRoomAnnouncement.current = null;
-      // Remove the processed announcement
-      pendingAnnouncements.current.shift();
-      // Process next announcement after a delay
-      setTimeout(processNextAnnouncement, 2000); // 2 second delay before next announcement
+      // Remove the processed announcement and process next
+      if (pendingAnnouncements.current.length > 0) {
+        pendingAnnouncements.current.shift();
+        setTimeout(processNextAnnouncement, 2000); // 2 second delay
+      }
+      if (parameters.onend) parameters.onend();
     };
     
-    // Cancel any ongoing speech and speak the new announcement
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(msg);
+    try {
+      // Check if ResponsiveVoice is available
+      if (window.responsiveVoice && typeof window.responsiveVoice.speak === 'function') {
+        console.log('Using ResponsiveVoice with voice:', voice);
+        console.log('Available voices:', window.responsiveVoice.voices);
+        
+        // Speak using ResponsiveVoice
+        window.responsiveVoice.speak(
+          announcementText,
+          voice,
+          {
+            ...parameters,
+            onstart: onStartCallback,
+            onend: onEndCallback,
+            onerror: onEndCallback
+          }
+        );
+      } else {
+        console.warn('ResponsiveVoice not properly initialized, falling back to Web Speech API');
+        throw new Error('ResponsiveVoice not available');
+      }
+    } catch (error) {
+      console.error('Error with ResponsiveVoice, falling back to Web Speech API:', error);
+      // Fallback to Web Speech API
+      const utterance = new window.SpeechSynthesisUtterance(announcementText);
+      utterance.lang = selectedLanguage === 'th' ? 'th-TH' : selectedLanguage === 'zh' ? 'zh-CN' : 'en-US';
+      utterance.rate = 0.8;
+      utterance.onend = onEndCallback;
+      utterance.onerror = onEndCallback;
+      window.speechSynthesis.speak(utterance);
+    }
     
   }, [selectedLanguage, rooms]);
+
+  // Attempt to auto-initialize audio on mount (for environments with autoplay allowed)
+  useEffect(() => {
+    let cancelled = false;
+    const autoInit = async () => {
+      if (hasUserInteracted) return; // already unlocked
+      try {
+        // Try silent audio to unlock
+        const silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQ=');
+        silentAudio.volume = 0;
+        await silentAudio.play();
+
+        const onInitialized = () => {
+          if (cancelled) return;
+          setHasUserInteracted(true);
+          setShowAudioPrompt(false);
+          if (pendingAnnouncements.current && pendingAnnouncements.current.length > 0) {
+            processNextAnnouncement(true);
+          }
+        };
+
+        // Try ResponsiveVoice first
+        if (window.responsiveVoice) {
+          setTimeout(() => {
+            try {
+              window.responsiveVoice.speak(' ', 'UK English Female', {
+                onstart: onInitialized,
+                volume: 0
+              });
+            } catch (e) {
+              // Fallback to Web Speech API
+              if (window.speechSynthesis) {
+                const u = new window.SpeechSynthesisUtterance(' ');
+                u.onstart = onInitialized;
+                window.speechSynthesis.speak(u);
+              }
+            }
+          }, 50);
+        } else if (window.speechSynthesis) {
+          const u = new window.SpeechSynthesisUtterance(' ');
+          u.onstart = onInitialized;
+          window.speechSynthesis.speak(u);
+        } else {
+          // No TTS available but audio context likely unlocked by silent audio
+          onInitialized();
+        }
+      } catch (e) {
+        // Silent audio failed -> environment still blocks autoplay; fall back to manual prompt
+        // Do nothing here; user can click the button
+      }
+    };
+    autoInit();
+    return () => { cancelled = true; };
+  }, [hasUserInteracted, processNextAnnouncement]);
 
   // Mark all current queues as announced the first time servingQueues is populated
   useEffect(() => {
@@ -247,12 +456,15 @@ export default function MonitorDisplay() {
             roomName,
             announceKey
           });
-          
-          console.log(`Added queue ${queue.queue_number} for room ${queue.room_id} to announcement queue`);
-          
-          // Process the queue if not already processing
-          if (!isSpeaking.current) {
-            processNextAnnouncement();
+
+          // If audio isn't enabled yet, show the prompt and don't try to speak
+          if (!hasUserInteracted) {
+            setShowAudioPrompt(true);
+          } else {
+            // Process the queue if not already processing
+            if (!isSpeaking.current) {
+              processNextAnnouncement();
+            }
           }
         }
       }

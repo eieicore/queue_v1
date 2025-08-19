@@ -25,7 +25,8 @@ export default function WaitingList({
   selectedLanguage, 
   onCallQueue, 
   isCalling = false,
-  currentQueueNumber = null 
+  currentQueueNumber = null,
+  hasCurrentQueue = false
 }) {
   const [currentTime, setCurrentTime] = useState(Date.now());
   useEffect(() => {
@@ -110,9 +111,9 @@ export default function WaitingList({
                 const isNewQueue = waitTime < 2;
                 const isLongWait = waitTime >= 30;
                 const bgColor = isNewQueue 
-                  ? 'bg-green-200 border-green-200' 
+                  ? 'bg-green-200 border-green-200 animate-blink' 
                   : isLongWait 
-                    ? 'bg-red-500 border-red-200' 
+                    ? 'bg-red-500 border-red-200 animate-blink' 
                     : 'hover:bg-slate-50 border-slate-100';
                 return (
                   <div key={queue.id} className={`p-3 border rounded-lg transition-colors ${bgColor}`}>
@@ -136,12 +137,13 @@ export default function WaitingList({
                               e.stopPropagation();
                               onCallQueue(queue);
                             }}
-                            disabled={isCalling && currentQueueNumber === queue.queue_number}
+                            disabled={hasCurrentQueue || (isCalling && currentQueueNumber === queue.queue_number)}
                             className={`ml-2 px-3 py-1 text-sm rounded-md transition-colors ${
-                              isCalling && currentQueueNumber === queue.queue_number 
+                              hasCurrentQueue || (isCalling && currentQueueNumber === queue.queue_number)
                                 ? 'bg-blue-400 text-white cursor-not-allowed' 
                                 : 'bg-blue-600 text-white hover:bg-blue-700'
                             }`}
+                            title={hasCurrentQueue ? 'กรุณาจบการให้บริการคิวปัจจุบันก่อน' : ''}
                           >
                             {isCalling && currentQueueNumber === queue.queue_number ? 'กำลังเรียก...' : 'เรียกคิว'}
                           </button>

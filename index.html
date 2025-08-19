@@ -5,6 +5,27 @@
     <link rel="icon" type="image/png" href="/hospital-building.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MediQueue</title>
+    <script>
+      // Debug log when script is loaded
+      console.log('Loading ResponsiveVoice script...');
+      window.onResponsiveVoiceLoaded = function() {
+        console.log('ResponsiveVoice loaded successfully');
+        console.log('ResponsiveVoice version:', window.responsiveVoice?.version);
+        console.log('Available voices:', window.responsiveVoice?.voices);
+      };
+    </script>
+    <script src="/assets/responsivevoice.js" onload="onResponsiveVoiceLoaded()"></script>
+    <script>
+      // Fallback in case onload doesn't fire
+      setTimeout(function() {
+        if (window.responsiveVoice) {
+          console.log('ResponsiveVoice available after timeout');
+          console.log('Available voices:', window.responsiveVoice.voices);
+        } else {
+          console.error('ResponsiveVoice not available after timeout');
+        }
+      }, 1000);
+    </script>
   </head>
   <body>
     <div id="root"></div>

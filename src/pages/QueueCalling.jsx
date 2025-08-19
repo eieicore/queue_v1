@@ -384,7 +384,7 @@ function QueueCallingContent() {
             <div className="lg:col-span-1 space-y-6">
               {/* ปุ่มควบคุมคิวอยู่ด้านบน */}
               <QueueControls 
-                onCallNext={() => setPendingAction('callNext')}
+                onCallNext={callNextQueue}
                 onRepeatCall={repeatCall}
                 onSkip={() => setPendingAction('skip')}
                 onPause={() => setPendingAction('pause')}
@@ -413,6 +413,7 @@ function QueueCallingContent() {
                 onCallQueue={callSpecificQueue}
                 isCalling={isCallingQueue}
                 currentQueueNumber={currentQueueNumber}
+                hasCurrentQueue={!!currentQueue}
               />
              
           </div>
@@ -423,6 +424,7 @@ function QueueCallingContent() {
                 selectedRoom={selectedRoom}
                 rooms={rooms}
                 selectedLanguage={selectedLanguage}
+                hasCurrentQueue={!!currentQueue}
               />
             </div>
           </div>
