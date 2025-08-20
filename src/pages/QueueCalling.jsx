@@ -139,7 +139,8 @@ function QueueCallingContent() {
     try {
       await Queue.update(queue.qr_code, {
         status: 'serving',
-        called_at: new Date().toISOString()
+        called_at: new Date().toISOString(),
+        language: selectedLanguage
       });
       
       setLastAction({ 
@@ -159,7 +160,8 @@ function QueueCallingContent() {
   const repeatCall = async () => {
     if (!currentQueue) return;
     await Queue.update(currentQueue.qr_code, {
-      called_at: new Date().toISOString()
+      called_at: new Date().toISOString(),
+      language: selectedLanguage
     });
     setLastAction({ 
       type: 'success', 
@@ -203,6 +205,7 @@ function QueueCallingContent() {
       await Queue.update(qrCode, {
         status: 'serving',
         called_at: new Date().toISOString(),
+        language: selectedLanguage,
         paused_at: null
       });
       const queue = queues.find(q => q.qr_code === qrCode);

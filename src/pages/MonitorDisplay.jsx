@@ -288,9 +288,11 @@ export default function MonitorDisplay() {
     // Set current room announcement
     currentRoomAnnouncement.current = queue.room_id;
     
-    // Get the room name in the selected language
+    // Determine language for this announcement: use queue.language if available, else selectedLanguage
+    const announceLang = queue.language || selectedLanguage;
+    // Get the room name in the announcement language
     const room = rooms.find(r => r.room_code === queue.room_id);
-    const localizedRoomName = room ? (room.room_names?.[selectedLanguage] || room.room_name || queue.room_id) : queue.room_id;
+    const localizedRoomName = room ? (room.room_names?.[announceLang] || room.room_name || queue.room_id) : queue.room_id;
     
     // Create and speak the announcement based on selected language
     let announcementText = '';
@@ -313,11 +315,11 @@ export default function MonitorDisplay() {
       'hi': `कतार संख्या ${queueNumber}, कृपया ${localizedRoomName} पर जाएं` // Hindi
     };
     
-    // Get the announcement text for the selected language, fallback to English
-    announcementText = announcements[selectedLanguage] || announcements['en'];
+    // Get the announcement text for the announcement language, fallback to English
+    announcementText = announcements[announceLang] || announcements['en'];
     
-    // Get voice parameters for the selected language
-    const { voice, parameters } = getVoiceParams(selectedLanguage);
+    // Get voice parameters for the announcement language
+    const { voice, parameters } = getVoiceParams(announceLang);
     
     // Set up event handlers
     const onStartCallback = () => {
@@ -362,7 +364,7 @@ export default function MonitorDisplay() {
       console.error('Error with ResponsiveVoice, falling back to Web Speech API:', error);
       // Fallback to Web Speech API
       const utterance = new window.SpeechSynthesisUtterance(announcementText);
-      utterance.lang = selectedLanguage === 'th' ? 'th-TH' : selectedLanguage === 'zh' ? 'zh-CN' : 'en-US';
+      utterance.lang = announceLang === 'th' ? 'th-TH' : announceLang === 'zh' ? 'zh-CN' : 'en-US';
       utterance.rate = 0.8;
       utterance.onend = onEndCallback;
       utterance.onerror = onEndCallback;
