@@ -165,10 +165,44 @@ export default function QueueStatus() {
   };
 
   const getStatusDisplay = () => {
-    if (!queue || !room) return null;
+    if (!queue) {
+      return <div className="text-center text-red-600">ไม่พบข้อมูลคิว</div>;
+    }
+    if (!room) {
+      return <div className="text-center text-red-600">ไม่พบข้อมูลห้อง</div>;
+    }
 
     switch (queue.status) {
-      case "waiting":
+      case "skipped": {
+        return (
+          <div className="text-center space-y-4">
+            <Clock className="w-20 h-20 text-red-500 mx-auto animate-pulse" />
+            <h2 className="text-3xl font-bold text-red-700">คิวของคุณถูกข้าม</h2>
+            <div className="my-6">
+              <span className="block text-lg font-bold text-red-600 bg-red-100 rounded-lg px-6 py-4 shadow-lg">
+                หมายเหตุ: กรุณาทำการกดบัตรคิวใหม่ที่จุดบริการ
+              </span>
+            </div>
+          </div>
+        );
+      }
+      case "paused": {
+        const pausedCount = queue.paused_count || (Array.isArray(queue.paused_count) ? queue.paused_count.length : 1);
+        return (
+          <div className="text-center space-y-4">
+            <Clock className="w-20 h-20 text-yellow-500 mx-auto animate-pulse" />
+            <h2 className="text-3xl font-bold text-yellow-700">คิวของคุณถูกพักชั่วคราว</h2>
+            <p className="text-xl text-yellow-700 font-bold">พักคิวแล้ว {pausedCount} รอบ</p>
+            <div className="my-6">
+              <span className="block text-lg font-bold text-red-600 bg-yellow-100 rounded-lg py-2 shadow-lg">
+                หมายเหตุ: กรุณาติดต่อเจ้าหน้าที่เพื่อดำเนินการต่อ
+              </span>
+            </div>
+          </div>
+        );
+      }
+      case "waiting": {
+        const fromRoomName = queue.original_room;
         return (
           <div className="text-center space-y-4">
             <Users className="w-20 h-20 text-blue-500 mx-auto" />
@@ -180,34 +214,35 @@ export default function QueueStatus() {
               </span>{" "}
               คิวก่อนหน้า
             </p>
-            <p className="text-slate-500">
-              เวลาที่คาดว่าจะได้เข้ารับบริการ: {queue.estimated_wait_time} นาที
-            </p>
+            {Array.isArray(queue.room_history) && queue.room_history.length > 1 && (
+              <div className="my-6">
+                <span className="block text-lg font-bold text-blue-700 bg-blue-100 rounded-lg px-6 py-4 shadow-lg">
+                  จาก <span className="text-blue-600">{queue.room_history[queue.room_history.length-2].room_name}</span> ไปที่ <span className="text-green-600">{queue.room_history[queue.room_history.length-1].room_name}</span>
+                </span>
+              </div>
+            )}
           </div>
         );
-      case "serving":
+      }
+      case "serving": {
         return (
           <div className="text-center space-y-4">
             <Ticket className="w-20 h-20 text-green-500 mx-auto animate-pulse" />
-            <h2 className="text-3xl font-bold text-slate-800">
-              ถึงคิวของคุณแล้ว
-            </h2>
-            <p className="text-xl text-slate-600">
-              กรุณาไปที่{" "}
-              <span className="font-bold text-green-600 text-2xl">
-                {room.room_name}
+            <div className="my-6">
+              <h2 className="block text-3xl font-bold text-green-700 bg-green-100 rounded-lg px-6 py-4 shadow-lg">ถึงคิวของคุณแล้ว</h2>
+              <span className="block text-3xl font-bold text-green-700 bg-green-100 rounded-lg px-6 py-4 shadow-lg">
+                กรุณาไปที่ <span className="text-green-600">{room.room_name}</span>
               </span>
-            </p>
+            </div>
           </div>
         );
-      case "completed":
+      }
+      case "completed": {
         if (isSurveySubmitted) {
           return (
             <div className="text-center space-y-4">
               <CheckCircle className="w-20 h-20 text-green-500 mx-auto" />
-              <h2 className="text-3xl font-bold text-slate-800">
-                ขอบคุณสำหรับความคิดเห็น
-              </h2>
+              <h2 className="text-3xl font-bold text-slate-800">ขอบคุณสำหรับความคิดเห็น</h2>
               <p className="text-xl text-slate-600">ขอให้ท่านมีสุขภาพแข็งแรง</p>
             </div>
           );
@@ -218,6 +253,7 @@ export default function QueueStatus() {
             onSubmitted={() => setIsSurveySubmitted(true)}
           />
         );
+      }
       default:
         return (
           <div className="text-center space-y-4">
