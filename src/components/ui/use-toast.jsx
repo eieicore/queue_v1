@@ -1,8 +1,8 @@
 // Inspired by react-hot-toast library
 import { useState, useEffect, createContext, useContext } from "react";
 
-const TOAST_LIMIT = 20;
-const TOAST_REMOVE_DELAY = 1000000;
+const TOAST_LIMIT = 5;
+const TOAST_REMOVE_DELAY = 5000; // 5 seconds
 
 const actionTypes = {
   ADD_TOAST: "ADD_TOAST",
@@ -21,9 +21,8 @@ function genId() {
 const toastTimeouts = new Map();
 
 const addToRemoveQueue = (toastId) => {
-  if (toastTimeouts.has(toastId)) {
-    return;
-  }
+  // Clear any existing timeout for this toast
+  clearFromRemoveQueue(toastId);
 
   const timeout = setTimeout(() => {
     toastTimeouts.delete(toastId);
@@ -47,6 +46,16 @@ const clearFromRemoveQueue = (toastId) => {
 export const reducer = (state, action) => {
   switch (action.type) {
     case actionTypes.ADD_TOAST:
+      // If toast with same ID exists, update it instead of adding new one
+      const existingToastIndex = state.toasts.findIndex(t => t.id === action.toast.id);
+      if (existingToastIndex >= 0) {
+        const updatedToasts = [...state.toasts];
+        updatedToasts[existingToastIndex] = { ...updatedToasts[existingToastIndex], ...action.toast };
+        return {
+          ...state,
+          toasts: updatedToasts,
+        };
+      }
       return {
         ...state,
         toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
@@ -63,12 +72,14 @@ export const reducer = (state, action) => {
     case actionTypes.DISMISS_TOAST: {
       const { toastId } = action;
 
-      // ! Side effects ! - This could be extracted into a dismissToast() action,
-      // but I'll keep it here for simplicity
+      // Clear any pending removal timeouts for this toast
       if (toastId) {
+        clearFromRemoveQueue(toastId);
         addToRemoveQueue(toastId);
       } else {
+        // Dismiss all toasts
         state.toasts.forEach((toast) => {
+          clearFromRemoveQueue(toast.id);
           addToRemoveQueue(toast.id);
         });
       }

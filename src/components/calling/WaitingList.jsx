@@ -111,9 +111,9 @@ export default function WaitingList({
                 const isNewQueue = waitTime < 2;
                 const isLongWait = waitTime >= 30;
                 const bgColor = isNewQueue 
-                  ? 'bg-green-200 border-green-200 animate-blink' 
+                  ? 'bg-green-200 border-green-200' 
                   : isLongWait 
-                    ? 'bg-red-500 border-red-200 animate-blink' 
+                    ? 'bg-red-500 border-red-200' 
                     : 'hover:bg-slate-50 border-slate-100';
                 return (
                   <div key={queue.id} className={`p-3 border rounded-lg transition-colors ${bgColor}`}>

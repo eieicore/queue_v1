@@ -566,7 +566,7 @@ export default function MonitorDisplay() {
       </div>
 
       {/* Header */}
-      <header ref={headerRef} className={`relative z-10 p-4 ${isPortrait ? 'py-3' : 'p-6'} border-b border-blue-100 bg-white/80 backdrop-blur-sm shadow-sm`}>
+      <header ref={headerRef} className={`relative z-10 p-4 ${isPortrait ? 'py-3 mt-4' : 'p-6'} border-b border-blue-100 bg-white/80 backdrop-blur-sm shadow-sm`}>
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-6">
             <div className="relative">
@@ -601,7 +601,7 @@ export default function MonitorDisplay() {
       </header>
       
       {/* Main Content */}
-      <main className={`relative z-10 ${isPortrait ? 'flex-1' : 'p-8 max-w-7xl mx-auto w-full'}`}>
+      <main className={`relative z-10 ${isPortrait ? 'flex-1 px-4' : 'p-8 max-w-7xl mx-auto w-full'}`}>
         {isPortrait ? (
           (() => {
             const totalPages = Math.ceil(rooms.length / itemsPerPage);
@@ -612,7 +612,7 @@ export default function MonitorDisplay() {
                     <div className="text-lg">ห้องตรวจ</div>
                     <div className="text-lg">คิวที่กำลังเรียก</div>
                   </div>
-                  <div className="flex-1 min-h-0 grid grid-rows-8 divide-y divide-gray-100">
+                  <div className="flex-1 min-h-0 grid grid-rows-8 px-8 py-4">
                     {currentRooms.map((room, index) => {
                       if (!room) return (
                         <div key={`empty-${index}`} className="h-full flex items-center justify-center border-b border-gray-100">
@@ -624,11 +624,9 @@ export default function MonitorDisplay() {
                       return (
                         <div 
                           key={room.room_code || room.id}
-                          className={`grid grid-cols-2 hover:bg-blue-50/50 transition-colors ${
-                            index < currentRooms.length - 1 ? 'border-b border-gray-100' : ''
-                          }`}
+                          className="grid grid-cols-2 hover:bg-blue-50/50 transition-colors h-full"
                         >
-                          <div className="p-2 border-r border-gray-100 flex flex-col justify-center h-full">
+                          <div className="p-2 border-r border-b border-gray-100 flex flex-col justify-center h-full w-full">
                             <div className="font-semibold text-gray-800 text-3xl leading-tight">{getRoomName(room, 'th')}</div>
                             {/* <div className="text-gray-600 text-sm leading-tight">{getRoomName(room, 'en')}</div>
                             <div className="mt-1">
@@ -637,7 +635,7 @@ export default function MonitorDisplay() {
                               </Badge>
                             </div> */}
                           </div>
-                          <div className="p-2 flex flex-col items-center justify-center h-full">
+                          <div className="p-2 flex flex-col items-center justify-center h-full w-full border-b border-gray-100">
                             {queue ? (
                               <>
                                 <div className="text-3xl font-bold text-blue-800 leading-tight">{queue.queue_number}</div>
@@ -659,25 +657,7 @@ export default function MonitorDisplay() {
                     })}
                   </div>
                   
-                  {totalPages > 1 && (
-                    <div className="mt-auto py-3 bg-gray-50 border-t border-gray-100">
-                      <div className="flex justify-center items-center gap-2">
-                        {Array.from({ length: totalPages }, (_, i) => (
-                          <button
-                            key={i}
-                            onClick={() => setCurrentPage(i)}
-                            className={`w-2.5 h-2.5 rounded-full transition-all ${
-                              i === currentPage ? 'bg-blue-600 scale-125' : 'bg-gray-300'
-                            }`}
-                            aria-label={`หน้า ${i + 1}`}
-                          />
-                        ))}
-                        <span className="text-sm text-gray-500 ml-2">
-                          หน้า {currentPage + 1}/{totalPages}
-                        </span>
-                      </div>
-                    </div>
-                  )}
+                  
                 </div>
               </div>
             );
@@ -839,8 +819,9 @@ export default function MonitorDisplay() {
         )}
       </main>
 
-      {/* Footer Status Bar */}
-      <footer className={`fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-blue-100 ${isPortrait ? 'p-2' : 'p-4'} z-50 shadow-inner`}>
+      {/* Footer Status Bar - Hidden in portrait mode */}
+      {!isPortrait && (
+        <footer className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-blue-100 p-4 z-50 shadow-inner">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
@@ -867,6 +848,7 @@ export default function MonitorDisplay() {
           </div>
         </div>
       </footer>
+      )}
 
       <style>{`
         .animate-blob {
