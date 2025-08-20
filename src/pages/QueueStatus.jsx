@@ -258,4 +258,4 @@ export default function QueueStatus() {
       </Card>
     </div>
   );
-}
+  
