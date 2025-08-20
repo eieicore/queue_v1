@@ -12,7 +12,8 @@ export default function QueueControls({
   onTransfer,
   hasCurrentQueue, 
   hasWaitingQueues,
-  simple // เพิ่ม prop simple
+  isCallingQueue,
+  simple
 }) {
   if (simple) {
     return (
@@ -20,28 +21,28 @@ export default function QueueControls({
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4 mb-2">
           <Button
             onClick={onCallNext}
-            disabled={!hasWaitingQueues}
-            className="bg-blue-500 hover:bg-blue-600 text-white h-12 flex items-center gap-2 font-medium"
+            disabled={!hasWaitingQueues || hasCurrentQueue || isCallingQueue}
+            className="bg-blue-500 hover:bg-blue-600 text-white h-12 flex items-center gap-2 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Phone className="w-5 h-5" />
-            เรียกถัดไป
+            {isCallingQueue ? 'กำลังดำเนินการ...' : 'เรียกถัดไป'}
           </Button>
           <Button
             onClick={onRepeatCall}
             disabled={!hasCurrentQueue}
-            className="bg-indigo-400 hover:bg-indigo-500 text-white h-12 flex items-center gap-2 font-medium"
+            className="bg-indigo-500 hover:bg-indigo-600 text-white h-12 flex items-center gap-2 font-medium"
           >
             <RotateCcw className="w-5 h-5" />
             เรียกซ้ำ
           </Button>
           <Button
-            onClick={onSkip}
+            onClick={onTransfer}
             disabled={!hasCurrentQueue}
             variant="outline"
-            className="border-yellow-300 text-yellow-700 bg-yellow-50 hover:bg-yellow-100 h-12 flex items-center gap-2 font-medium"
+            className="border-purple-200 text-purple-700 bg-purple-50 hover:bg-purple-100 h-12 flex items-center gap-2 font-medium"
           >
-            <SkipForward className="w-5 h-5" />
-            ข้ามคิว
+            <Send className="w-5 h-5" />
+            ส่งต่อ
           </Button>
           <Button
             onClick={onPause}
@@ -53,14 +54,15 @@ export default function QueueControls({
             พักคิว
           </Button>
           <Button
-            onClick={onTransfer}
+            onClick={onSkip}
             disabled={!hasCurrentQueue}
             variant="outline"
-            className="border-purple-200 text-purple-700 bg-purple-50 hover:bg-purple-100 h-12 flex items-center gap-2 font-medium"
+            className="border-yellow-300 text-yellow-700 bg-yellow-50 hover:bg-yellow-100 h-12 flex items-center gap-2 font-medium"
           >
-            <Send className="w-5 h-5" />
-            ส่งต่อ
+            <SkipForward className="w-5 h-5" />
+            ข้ามคิว
           </Button>
+       
           <Button
             onClick={onComplete}
             disabled={!hasCurrentQueue}
@@ -85,11 +87,11 @@ export default function QueueControls({
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <Button
             onClick={onCallNext}
-            disabled={!hasWaitingQueues}
-            className="bg-blue-600 hover:bg-blue-700 text-white h-12 flex items-center gap-2"
+            disabled={!hasWaitingQueues || hasCurrentQueue || isCallingQueue}
+            className="bg-blue-600 hover:bg-blue-700 text-white h-12 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Phone className="w-5 h-5" />
-            เรียกถัดไป
+            {isCallingQueue ? 'กำลังดำเนินการ...' : 'เรียกถัดไป'}
           </Button>
 
           <Button

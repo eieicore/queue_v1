@@ -208,7 +208,7 @@ function AdminManagementContent() {
         )}
 
         <Tabs defaultValue="ticket-format" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="ticket-format" className="flex items-center gap-2">
               <Settings className="w-4 h-4" />
               รูปแบบบัตร
@@ -221,10 +221,10 @@ function AdminManagementContent() {
               <UserPlus className="w-4 h-4" />
               จัดการผู้ใช้
             </TabsTrigger>
-            <TabsTrigger value="system" className="flex items-center gap-2">
+            {/* <TabsTrigger value="system" className="flex items-center gap-2">
               <Volume2 className="w-4 h-4" />
               ตั้งค่าระบบ
-            </TabsTrigger>
+            </TabsTrigger> */}
           </TabsList>
 
           <TabsContent value="ticket-format">

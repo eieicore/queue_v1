@@ -18,7 +18,16 @@ const triageStyles = {
   non_urgent: { label: 'ทั่วไป (ขาว)', color: 'bg-slate-200 text-slate-800' }
 };
 
-export default function WaitingList({ waitingQueues, selectedRoom, rooms, selectedLanguage }) {
+export default function WaitingList({ 
+  waitingQueues, 
+  selectedRoom, 
+  rooms, 
+  selectedLanguage, 
+  onCallQueue, 
+  isCalling = false,
+  currentQueueNumber = null,
+  hasCurrentQueue = false
+}) {
   const [currentTime, setCurrentTime] = useState(Date.now());
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(Date.now()), 1000);
@@ -62,13 +71,29 @@ export default function WaitingList({ waitingQueues, selectedRoom, rooms, select
     return labels[type] || type;
   };
 
+  // Sort queues by the last entered_at time in room_history (oldest first)
+  const sortedQueues = [...waitingQueues].sort((a, b) => {
+    const getLastEnteredTime = (queue) => {
+      if (!queue.room_history || queue.room_history.length === 0) {
+        return new Date(queue.created_date).getTime();
+      }
+      // Get the last room history entry
+      const lastEntry = queue.room_history[queue.room_history.length - 1];
+      return new Date(lastEntry.entered_at).getTime();
+    };
+
+    const timeA = getLastEnteredTime(a);
+    const timeB = getLastEnteredTime(b);
+    return timeA - timeB; // Sort in ascending order (oldest first)
+  });
+
   return (
     <Card className="bg-white/80 backdrop-blur-sm border-slate-200 shadow-lg h-full">
       <CardHeader className="border-b border-slate-100">
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Users className="w-5 h-5 text-blue-600" />
-            รายการรอคิว
+            รายการรอคิว (เรียงตามเวลารอคอย)
           </div>
           <Badge variant="secondary" className="bg-blue-100 text-blue-800">
             {waitingQueues.length} คิว
@@ -77,25 +102,51 @@ export default function WaitingList({ waitingQueues, selectedRoom, rooms, select
       </CardHeader>
       <CardContent className="p-13">
         <div className="max-h-96 overflow-y-auto">
-          {waitingQueues.length > 0 ? (
+          {sortedQueues.length > 0 ? (
             <div className="space-y-6">
-              {waitingQueues.map((queue, index) => {
+              {sortedQueues.map((queue, index) => {
                 const triageInfo = triageStyles[queue.triage_level] || triageStyles['non_urgent'];
+                const waitTime = getWaitTime(queue.created_date);
+                console.log('Wait time:', waitTime);
+                const isNewQueue = waitTime < 2;
+                const isLongWait = waitTime >= 30;
+                const bgColor = isNewQueue 
+                  ? 'bg-green-200 border-green-200 animate-blink' 
+                  : isLongWait 
+                    ? 'bg-red-500 border-red-200 animate-blink' 
+                    : 'hover:bg-slate-50 border-slate-100';
                 return (
-                  <div key={queue.id} className="p-3 border border-slate-100 rounded-lg hover:bg-slate-50 transition-colors">
+                  <div key={queue.id} className={`p-3 border rounded-lg transition-colors ${bgColor}`}>
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 ${triageInfo.color} rounded-lg flex items-center justify-center font-bold`}>
                           {index + 1}
                         </div>
-                        <div>
-                          <p className="font-medium text-slate-900">{queue.queue_number}</p>
-                          <Badge
-                            variant="outline"
-                            className={`${patientTypeColors[queue.patient_type]} text-xs`}
+                        <div className="flex items-center gap-2">
+                          <div>
+                            <p className="font-medium text-slate-900">{queue.queue_number}</p>
+                            <Badge
+                              variant="outline"
+                              className={`${patientTypeColors[queue.patient_type]} text-xs`}
+                            >
+                              {getPatientTypeLabel(queue.patient_type)}
+                            </Badge>
+                          </div>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onCallQueue(queue);
+                            }}
+                            disabled={hasCurrentQueue || (isCalling && currentQueueNumber === queue.queue_number)}
+                            className={`ml-2 px-3 py-1 text-sm rounded-md transition-colors ${
+                              hasCurrentQueue || (isCalling && currentQueueNumber === queue.queue_number)
+                                ? 'bg-blue-400 text-white cursor-not-allowed' 
+                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                            }`}
+                            title={hasCurrentQueue ? 'กรุณาจบการให้บริการคิวปัจจุบันก่อน' : ''}
                           >
-                            {getPatientTypeLabel(queue.patient_type)}
-                          </Badge>
+                            {isCalling && currentQueueNumber === queue.queue_number ? 'กำลังเรียก...' : 'เรียกคิว'}
+                          </button>
                         </div>
                       </div>
                       <Badge className={triageInfo.color}>{triageInfo.label}</Badge>
