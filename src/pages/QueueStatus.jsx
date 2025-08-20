@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { Queue, Room, Feedback } from "@/api/entities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,7 @@ function SurveyForm({ queue, onSubmitted }) {
     try {
       // สร้าง timestamp ตาม timezone ไทย
       const now = new Date();
-      const tzOffset = 7 * 60; 
+      const tzOffset = 7 * 60; // +07:00
       // const localISO = new Date(now.getTime() - (now.getTimezoneOffset() - tzOffset) * 60000).toISOString().slice(0, 19) + '+07:00';
       const localISO = new Date().toLocaleString("sv-SE", {
         timeZone: "Asia/Bangkok",
@@ -62,10 +62,11 @@ function SurveyForm({ queue, onSubmitted }) {
         {[1, 2, 3, 4, 5].map((star) => (
           <Star
             key={star}
-            className={`w-10 h-10 cursor-pointer transition-colors ${star <= rating
-              ? "text-yellow-400 fill-yellow-400"
-              : "text-slate-300"
-              }`}
+            className={`w-10 h-10 cursor-pointer transition-colors ${
+              star <= rating
+                ? "text-yellow-400 fill-yellow-400"
+                : "text-slate-300"
+            }`}
             onClick={() => setRating(star)}
           />
         ))}
@@ -90,8 +91,7 @@ function SurveyForm({ queue, onSubmitted }) {
 }
 
 export default function QueueStatus() {
-  const [hasAnnounced, setHasAnnounced] = useState(false);
-  const { qr_code } = useParams();
+  const location = useLocation();
   const [queue, setQueue] = useState(null);
   const [room, setRoom] = useState(null);
   const [waitingCount, setWaitingCount] = useState(0);
@@ -100,43 +100,52 @@ export default function QueueStatus() {
   const [isSurveySubmitted, setIsSurveySubmitted] = useState(false);
 
   useEffect(() => {
-    console.log('QueueStatus mounted, qr_code:', qr_code);
-    if (!qr_code) {
+    const params = new URLSearchParams(location.search);
+    const qrCode = params.get("qr_code");
+
+    if (!qrCode) {
       setError("ไม่พบรหัส QR Code");
       setIsLoading(false);
       return;
     }
+
+    // Check if the survey was already submitted for this specific queue (e.g., from local storage or context)
+    // For simplicity, we reset it here on new QR code load.
     setIsSurveySubmitted(false);
-    loadQueueStatus(qr_code);
-    const interval = setInterval(() => loadQueueStatus(qr_code), 5000);
+
+    loadQueueStatus(qrCode);
+    const interval = setInterval(() => loadQueueStatus(qrCode), 5000); // เปลี่ยนเป็น 20 วินาที
     return () => clearInterval(interval);
-  }, [qr_code]);
+  }, [location.search]);
 
   const loadQueueStatus = async (qrCode) => {
     try {
       const queueResult = await Queue.filter({ qr_code: qrCode });
-      console.log('Queue.filter result:', queueResult);
       if (queueResult.length === 0) {
         setError("ไม่พบคิวสำหรับ QR Code นี้");
         setQueue(null);
         setIsLoading(false);
         return;
       }
+
       const currentQueue = queueResult[0];
       setQueue(currentQueue);
+
       const [allRooms, waitingQueues] = await Promise.all([
         Room.list(),
         Queue.filter({ room_id: currentQueue.room_id, status: "waiting" }),
       ]);
-      console.log('Room.list result:', allRooms);
-      console.log('Waiting queues:', waitingQueues);
+
       const currentRoom = allRooms.find(
         (r) => r.room_code === currentQueue.room_id
       );
       setRoom(currentRoom);
+
+      // Filter เฉพาะคิวที่ waiting และ sort ตาม created_date
       const sortedWaitingQueues = waitingQueues
         .filter((q) => q.status === "waiting")
         .sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
+      // หา index ของคิวปัจจุบันในลำดับที่ sort แล้ว (index คือจำนวนคิวก่อนหน้า)
       const myQueueIndex = sortedWaitingQueues.findIndex(
         (q) => q.queue_number === currentQueue.queue_number
       );
@@ -145,6 +154,7 @@ export default function QueueStatus() {
       console.error("Error loading queue status:", err);
       if (err.response?.status === 429) {
         setError("ระบบกำลังยุ่ง กรุณารอสักครู่");
+        // รอ 30 วินาทีก่อน retry
         setTimeout(() => loadQueueStatus(qrCode), 30000);
       } else {
         setError("เกิดข้อผิดพลาดในการโหลดข้อมูลคิว");
@@ -154,28 +164,14 @@ export default function QueueStatus() {
     }
   };
 
-  // ลบ if (status === "serving") ออก ใช้ใน getStatusDisplay เท่านั้น
-
-  // ฟังก์ชั่นสำหรับเสียงแจ้งเตือน
-  const speakRoom = (roomName) => {
-    if (!window.speechSynthesis || !roomName) return;
-    const utter = new window.SpeechSynthesisUtterance(`กรุณาไปที่ ${roomName}`);
-    utter.lang = 'th-TH';
-    window.speechSynthesis.speak(utter);
-  };
-
-  useEffect(() => {
-    if (queue && queue.status === 'serving' && room && !hasAnnounced) {
-      speakRoom(room.room_name);
-      setHasAnnounced(true);
-    }
-    if (queue && queue.status !== 'serving') {
-      setHasAnnounced(false);
-    }
-  }, [queue, room]);
-
   const getStatusDisplay = () => {
-      // ...existing code...
+    if (!queue) {
+      return <div className="text-center text-red-600">ไม่พบข้อมูลคิว</div>;
+    }
+    if (!room) {
+      return <div className="text-center text-red-600">ไม่พบข้อมูลห้อง</div>;
+    }
+
     switch (queue.status) {
       case "skipped": {
         return (
@@ -190,16 +186,7 @@ export default function QueueStatus() {
           </div>
         );
       }
-    }
-    if (!queue) {
-      return <div className="text-center text-red-600">ไม่พบข้อมูลคิว</div>;
-    }
-    if (!room) {
-      return <div className="text-center text-red-600">ไม่พบข้อมูลห้อง</div>;
-    }
-  switch (queue.status) {
       case "paused": {
-        // นับจำนวนรอบที่พักคิว (เช่น queue.paused_count)
         const pausedCount = queue.paused_count || (Array.isArray(queue.paused_count) ? queue.paused_count.length : 1);
         return (
           <div className="text-center space-y-4">
@@ -227,7 +214,6 @@ export default function QueueStatus() {
               </span>{" "}
               คิวก่อนหน้า
             </p>
-            {/* เส้นทางห้องทั้งหมด */}
             {Array.isArray(queue.room_history) && queue.room_history.length > 1 && (
               <div className="my-6">
                 <span className="block text-lg font-bold text-blue-700 bg-blue-100 rounded-lg px-6 py-4 shadow-lg">
@@ -239,7 +225,6 @@ export default function QueueStatus() {
         );
       }
       case "serving": {
-        // ถ้าไม่มี room_history ให้แสดงข้อความเด่น
         return (
           <div className="text-center space-y-4">
             <Ticket className="w-20 h-20 text-green-500 mx-auto animate-pulse" />
@@ -252,7 +237,6 @@ export default function QueueStatus() {
           </div>
         );
       }
-  
       case "completed": {
         if (isSurveySubmitted) {
           return (
@@ -311,4 +295,3 @@ export default function QueueStatus() {
     </div>
   );
 }
-
