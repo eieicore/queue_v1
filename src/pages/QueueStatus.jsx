@@ -25,7 +25,7 @@ function SurveyForm({ queue, onSubmitted }) {
     try {
       // สร้าง timestamp ตาม timezone ไทย
       const now = new Date();
-      const tzOffset = 7 * 60; // +07:00
+      const tzOffset = 7 * 60; 
       // const localISO = new Date(now.getTime() - (now.getTimezoneOffset() - tzOffset) * 60000).toISOString().slice(0, 19) + '+07:00';
       const localISO = new Date().toLocaleString("sv-SE", {
         timeZone: "Asia/Bangkok",
