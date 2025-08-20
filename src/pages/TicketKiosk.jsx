@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Room, Patient, Appointment, QueueSettings } from '@/api/entities';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input'; 
+import { Input } from '@/components/ui/input';
+import { supabase } from '@/lib/supabase'; 
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
@@ -382,7 +383,7 @@ export default function TicketKiosk() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <style jsx global>{`
+      <style jsx="true" global="true">{`
         @media print {
           body * {
             visibility: hidden;
