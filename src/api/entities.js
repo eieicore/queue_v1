@@ -302,42 +302,6 @@ export const Appointment = {
     });
     return await res.json();
   },
-  create: async (data) => {
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
-    const res = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/appointments', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': API_KEY,
-        'Authorization': `Bearer ${API_KEY}`,
-        'Prefer': 'return=representation'
-      },
-      body: JSON.stringify(data)
-    });
-    return await res.json();
-  },
-  update: async (id, data) => {
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
-    const res = await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/appointments?id=eq.${id}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': API_KEY,
-        'Authorization': `Bearer ${API_KEY}`,
-        'Prefer': 'return=representation'
-      },
-      body: JSON.stringify(data)
-    });
-    const result = await res.json();
-    if (!res.ok) throw new Error(result?.message || 'Failed to update appointment');
-    return Array.isArray(result) ? result[0] : result;
-  },
-  delete: async (id) => {
-    let appointments = getLocal('appointments');
-    appointments = appointments.filter(a => a.id !== id);
-    setLocal('appointments', appointments);
-    return true;
-  },
   filter: async (params) => {
     const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
     let query = [];
@@ -390,13 +354,17 @@ export const SatisfactionSurvey = {
 
 // --- User (auth) ---
 let currentUser = null;
-function getCurrentUser() {
-  if (currentUser) return currentUser;
-  const id = localStorage.getItem('currentUserId');
-  if (!id) return null;
-  const users = getLocal('user');
-  return users.find(u => u.id === id) || null;
-}
+
+const getCurrentUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem('currentUser')) || null;
+  } catch {
+    return null;
+  }
+};
+
+currentUser = getCurrentUser();
+
 export const User = {
   list: async () => {
     const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
@@ -408,33 +376,223 @@ export const User = {
     });
     return await res.json();
   },
-  me: async () => getCurrentUser(),
-  login: async (username, password) => {
-    const users = getLocal('user');
-    const user = users.find(u => u.username === username && u.password === password);
-    if (user) {
-      currentUser = user;
-      localStorage.setItem('currentUserId', user.id);
-      return user;
+  
+  me: () => currentUser || getCurrentUser(),
+  
+  login: async (email, password) => {
+    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
+    
+    try {
+      // First try to authenticate with Supabase Auth
+      const authRes = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/auth/v1/token?grant_type=password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': API_KEY,
+          'Authorization': `Bearer ${API_KEY}`
+        },
+        body: JSON.stringify({
+          email,
+          password
+        })
+      });
+      
+      if (!authRes.ok) {
+        const error = await authRes.json();
+        throw new Error(error.error_description || 'Login failed: Invalid email or password');
+      }
+      
+      const authData = await authRes.json();
+      
+      // Get user profile from our user table using email (more reliable than ID)
+      const userRes = await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/user?email=eq.${encodeURIComponent(email)}`, {
+        headers: {
+          'apikey': API_KEY,
+          'Authorization': `Bearer ${API_KEY}`
+        }
+      });
+      
+      if (!userRes.ok) {
+        throw new Error('Failed to fetch user profile');
+      }
+      
+      const users = await userRes.json();
+      if (!users || users.length === 0) {
+        throw new Error('User profile not found');
+      }
+      
+      const userProfile = users[0];
+      
+      // Check if user is active
+      if (userProfile.is_active === false) {
+        throw new Error('This account has been deactivated');
+      }
+      
+      currentUser = {
+        ...userProfile,
+        access_token: authData.access_token,
+        refresh_token: authData.refresh_token
+      };
+      
+      // Store auth data
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
+      localStorage.setItem('supabase.auth.token', authData.access_token);
+      
+      return currentUser;
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error; // Re-throw to let the caller handle it
     }
-    throw new Error('Invalid credentials');
   },
+  
+  create: async (userData) => {
+    // Alias for signUp for backward compatibility
+    return User.signUp(userData);
+  },
+  
+  signUp: async (userData) => {
+    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
+    
+    try {
+      // Create user profile directly in the user table (auth.users will be handled by Supabase)
+      const userProfile = {
+        email: userData.email,
+        username: userData.username || userData.email.split('@')[0],
+        password: userData.password,
+        full_name: userData.full_name,
+        department: userData.department || '',
+        position: userData.position || '',
+        phone: userData.phone || '',
+        access_level: userData.access_level || 'staff',
+        is_active: userData.is_active !== false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      // First, create the user in the user table
+      const userRes = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': API_KEY,
+          'Authorization': `Bearer ${API_KEY}`,
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(userProfile)
+      });
+
+      if (!userRes.ok) {
+        const error = await userRes.json();
+        console.error('Error creating user:', error);
+        throw new Error(error.message || 'Failed to create user');
+      }
+
+      const createdUser = await userRes.json();
+      const newUser = Array.isArray(createdUser) ? createdUser[0] : createdUser;
+
+      // Then, sign up the user with Supabase Auth
+      const authRes = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/auth/v1/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': API_KEY,
+          'Authorization': `Bearer ${API_KEY}`
+        },
+        body: JSON.stringify({
+          email: userData.email,
+          password: userData.password,
+          options: {
+            data: {
+              user_id: newUser.id,
+              username: userData.username,
+              full_name: userData.full_name,
+              department: userData.department || '',
+              position: userData.position || '',
+              phone: userData.phone || ''
+            }
+          }
+        })
+      });
+      
+      if (!authRes.ok) {
+        // If auth fails, delete the user profile we just created
+        await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/user?id=eq.${newUser.id}`, {
+          method: 'DELETE',
+          headers: {
+            'apikey': API_KEY,
+            'Authorization': `Bearer ${API_KEY}`
+          }
+        });
+        
+        const error = await authRes.json();
+        throw new Error(error.error_description || 'Failed to create authentication account');
+      }
+      
+      return newUser;
+    } catch (error) {
+      console.error('Error in User.signUp:', error);
+      throw error; // Re-throw to let the caller handle it
+    }
+  },
+  
   logout: async () => {
-    currentUser = null;
-    localStorage.removeItem('currentUserId');
-    return true;
-  },
-  update: async (id, data) => {
-    const users = getLocal('users');
-    const idx = users.findIndex(u => u.id === id);
-    if (idx !== -1) {
-      users[idx] = { ...users[idx], ...data };
-      setLocal('users', users);
-      if (currentUser && currentUser.id === id) currentUser = users[idx];
-      if (localStorage.getItem('currentUserId') === id) localStorage.setItem('currentUserId', id);
-      return users[idx];
+    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
+    
+    try {
+      // Invalidate the session
+      await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/auth/v1/logout', {
+        method: 'POST',
+        headers: {
+          'apikey': API_KEY,
+          'Authorization': `Bearer ${localStorage.getItem('supabase.auth.token') || API_KEY}`
+        }
+      });
+    } catch (error) {
+      console.error('Error during logout:', error);
+    } finally {
+      // Clear local state
+      currentUser = null;
+      localStorage.removeItem('currentUser');
+      localStorage.removeItem('supabase.auth.token');
     }
-    throw new Error('User not found');
+  },
+  
+  update: async (id, data) => {
+    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
+    
+    // Prepare the update data
+    const updateData = {
+      ...data,
+      updated_at: new Date().toISOString()
+    };
+    
+    // Update user profile in the users table
+    const res = await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/user?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': API_KEY,
+        'Authorization': `Bearer ${API_KEY}`,
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify(updateData)
+    });
+    
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.message || 'Failed to update user');
+    }
+    
+    const result = await res.json();
+    const updatedUser = Array.isArray(result) ? result[0] : result;
+    
+    // Update current user data if it's the current user
+    if (currentUser && currentUser.id === id) {
+      currentUser = { ...currentUser, ...updateData };
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    }
+    
+    return updatedUser;
   }
 };
 
