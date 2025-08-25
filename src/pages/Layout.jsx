@@ -43,9 +43,29 @@ const navigationItems = [
   { title: "Reports",             url: createPageUrl("Reports"),             icon: BarChart3,       requiredLevel: "staff"  },
 ];
 
+// Check if screen is in portrait mode
+const isPortrait = () => window.innerHeight > window.innerWidth;
+
+// Check if current route is MonitorDisplay in portrait mode
+const isMonitorDisplayPortrait = () => {
+  const isMonitorPage = location.pathname.toLowerCase() === createPageUrl("MonitorDisplay").toLowerCase();
+  return isMonitorPage && isPortrait();
+};
+
 export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const [isPortraitMode, setIsPortraitMode] = React.useState(isMonitorDisplayPortrait());
+
+  // Update portrait mode on resize
+  React.useEffect(() => {
+    const handleResize = () => {
+      setIsPortraitMode(isMonitorDisplayPortrait());
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [location.pathname]);
 
   const [user, setUser] = React.useState(null);
   const [isLoadingUser, setIsLoadingUser] = React.useState(true);
@@ -94,6 +114,15 @@ export default function Layout({ children }) {
   // While loading, render nothing (or a spinner)
   if (isLoadingUser) return null;
 
+
+  // In portrait mode for MonitorDisplay, show only the content without layout
+  if (isPortraitMode) {
+    return (
+      <div className="min-h-screen w-full">
+        {children}
+      </div>
+    );
+  }
 
   // If not logged in, show LoginGuard
   if (!user) {

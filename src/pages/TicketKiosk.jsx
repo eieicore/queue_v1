@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Room, Patient, Appointment, QueueSettings } from '@/api/entities';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input'; 
+import { Input } from '@/components/ui/input';
+import { supabase } from '@/lib/supabase'; 
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
@@ -30,6 +31,7 @@ import RoomActivity from '../components/dashboard/RoomActivity';
 export default function TicketKiosk() {
   const [step, setStep] = useState('select'); // select, form, ticket
   const [patientType, setPatientType] = useState('');
+  const [isProcessingAppointment, setIsProcessingAppointment] = useState(false);
   const [patientId, setPatientId] = useState('');
   const [patientName, setPatientName] = useState('');
   const [selectedRoom, setSelectedRoom] = useState('');
@@ -160,16 +162,24 @@ export default function TicketKiosk() {
         setPatientName(`${patient.first_name} ${patient.last_name}`);
         setError('');
         
-        // For appointment type, check for appointment and auto-fill room
-        if (patientType === 'appointment') {
+        // Always check for appointment for returning patients
+        if (patientType === 'returning' || isProcessingAppointment) {
           const appointment = await checkAppointment(searchValue);
           if (appointment) {
             setAppointmentData(appointment);
             setSelectedRoom(appointment.room_id);
-          } else {
-            setError('ไม่พบการนัดหมายสำหรับวันนี้');
-            setAppointmentData(null);
-            setSelectedRoom('');
+            // If this was a combined type, update the patient type to appointment
+            if (isProcessingAppointment) {
+              setPatientType('appointment');
+              setIsProcessingAppointment(false);
+            }
+          } else if (isProcessingAppointment) {
+            // If no appointment found but was from combined type, route to history taking
+            const historyRoom = rooms.find(r => r.room_type === 'history_taking');
+            if (historyRoom) {
+              setSelectedRoom(historyRoom.room_code);
+            }
+            setIsProcessingAppointment(false);
           }
         }
       } else {
@@ -217,29 +227,43 @@ export default function TicketKiosk() {
 
     try {
       let finalRoomCode = selectedRoom;
+      let finalPatientType = patientType;
 
-      if (patientType === 'appointment') {
-        if (!patientId.trim()) {
-            setError('กรุณากรอกรหัสผู้ป่วยหรือหมายเลข HN');
-            setIsLoading(false);
-            return;
-        }
-        const appointment = await checkAppointment(patientId);
-        if (!appointment) {
-          setError('ไม่พบการนัดหมายสำหรับวันนี้');
+      // For new patients, always route to history taking room
+      if (patientType === 'new') {
+        const historyRoom = rooms.find(r => r.room_type === 'history_taking');
+        if (!historyRoom) {
+          setError('ไม่พบห้องซักประวัติ กรุณาติดต่อเจ้าหน้าที่');
           setIsLoading(false);
           return;
         }
-        finalRoomCode = appointment.room_id; 
-        await Appointment.update(appointment.id, { status: 'checked_in' });
-      } else if (patientType === 'new') {
-        const historyRoom = rooms.find(r => r.room_type === 'history_taking');
-        if (!historyRoom) {
+        finalRoomCode = historyRoom.room_code;
+      } 
+      // For returning patients, check if they have an appointment
+      else if (patientType === 'returning') {
+        if (!patientId.trim()) {
+          setError('กรุณากรอกรหัสผู้ป่วยหรือหมายเลข HN');
+          setIsLoading(false);
+          return;
+        }
+        
+        // Check for appointment
+        const appointment = await checkAppointment(patientId);
+        if (appointment) {
+          // If appointment found, use appointment details
+          finalRoomCode = appointment.room_id;
+          finalPatientType = 'appointment';
+          await Appointment.update(appointment.id, { status: 'checked_in' });
+        } else {
+          // If no appointment, route to history taking room
+          const historyRoom = rooms.find(r => r.room_type === 'history_taking');
+          if (!historyRoom) {
             setError('ไม่พบห้องซักประวัติ กรุณาติดต่อเจ้าหน้าที่');
             setIsLoading(false);
             return;
+          }
+          finalRoomCode = historyRoom.room_code;
         }
-        finalRoomCode = historyRoom.room_code;
       }
       
       if (!finalRoomCode) {
@@ -258,16 +282,16 @@ export default function TicketKiosk() {
       // Get the appropriate prefix from queueSettings
       let prefix = '';
       if (queueSettings?.ticket_format) {
-        if (patientType === 'new') {
+        if (finalPatientType === 'new') {
           prefix = queueSettings.ticket_format.new_patient_prefix || 'N';
-        } else if (patientType === 'returning') {
-          prefix = queueSettings.ticket_format.returning_patient_prefix || 'R';
-        } else if (patientType === 'appointment') {
+        } else if (finalPatientType === 'appointment') {
           prefix = queueSettings.ticket_format.appointment_prefix || 'A';
+        } else {
+          prefix = queueSettings.ticket_format.returning_patient_prefix || 'R';
         }
       } else {
         // Fallback to hardcoded prefixes if queueSettings is not available
-        prefix = patientType === 'new' ? 'N' : (patientType === 'returning' ? 'R' : 'A');
+        prefix = finalPatientType === 'new' ? 'N' : (finalPatientType === 'appointment' ? 'A' : 'R');
       }
 
       // Call Supabase RPC function to get the next queue number
@@ -275,16 +299,16 @@ export default function TicketKiosk() {
         .rpc('next_queue_ticket_json', {
           p_room_id: room.room_code,
           p_room_name: room.room_name,
-          p_patient_type: patientType,
-          p_patient_id: patientType === 'new' ? null : patientId,
+          p_patient_type: finalPatientType,
+          p_patient_id: finalPatientType === 'new' ? null : patientId,
           p_patient_name: patientName || null,
-          p_priority: patientType === 'appointment' ? 1 : 0,
+          p_priority: finalPatientType === 'appointment' ? 1 : 0,
           p_doctor_name: appointmentData ? appointmentData.doctor_name : null,
           p_department: room.department || null,
           p_appointment_time: appointmentData ? appointmentData.appointment_time : null,
           p_appointment_type: appointmentData ? appointmentData.appointment_type : null,
           p_estimated_wait_time: calculateEstimatedWaitTime(room.room_code),
-          p_original_room: patientType === 'new' ? null : room.room_name,
+          p_original_room: finalPatientType === 'new' ? null : room.room_name,
           p_triage_level: 'non_urgent',
           p_prefix: prefix
         });
@@ -317,6 +341,28 @@ export default function TicketKiosk() {
     return Math.floor(Math.random() * 30) + 10; // 10-40 minutes
   };
 
+  const handleSelectType = (type) => {
+    setPatientType(type);
+    setStep('form');
+    setPatientId('');
+    setPatientName('');
+    setSelectedRoom('');
+    setAppointmentData(null);
+    setError('');
+    setIsProcessingAppointment(false);
+  };
+
+  const handleCombinedPatientType = () => {
+    setPatientType('returning');
+    setStep('form');
+    setPatientId('');
+    setPatientName('');
+    setSelectedRoom('');
+    setAppointmentData(null);
+    setError('');
+    setIsProcessingAppointment(true);
+  };
+
   const resetForm = () => {
     setPatientType('');
     setPatientId('');
@@ -337,7 +383,7 @@ export default function TicketKiosk() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <style jsx global>{`
+      <style jsx="true" global="true">{`
         @media print {
           body * {
             visibility: hidden;
@@ -388,18 +434,9 @@ export default function TicketKiosk() {
               </CardHeader>
               <CardContent className="p-8">
                 <PatientTypeSelector 
-                  selectedType={patientType}
-                  onSelectType={(type) => {
-                    setPatientType(type);
-                    setStep('form');
-                    // ถ้าเป็นผู้ป่วยใหม่ ข้ามไปห้องซักประวัติเลย
-                    if (type === 'new') {
-                      const historyRoom = rooms.find(r => r.room_type === 'history_taking');
-                      if (historyRoom) {
-                        setSelectedRoom(historyRoom.room_code);
-                      }
-                    }
-                  }}
+                  selectedType={patientType} 
+                  onSelectType={handleSelectType}
+                  onSelectCombined={handleCombinedPatientType}
                 />
               </CardContent>
             </Card>
@@ -423,7 +460,7 @@ export default function TicketKiosk() {
                 </div>
               </CardHeader>
               <CardContent className="p-8 space-y-6">
-                {/* ผู้ป่วยใหม่ไม่ต้องกรอกข้อมูลเพิ่ม */}
+                {/* New patients see a simple message */}
                 {patientType === 'new' && (
                   <div className="text-center p-6 bg-green-50 border border-green-200 rounded-lg">
                     <h3 className="text-lg font-semibold text-green-800 mb-2">ผู้ป่วยใหม่</h3>
@@ -432,8 +469,8 @@ export default function TicketKiosk() {
                   </div>
                 )}
 
-                {/* ผู้ป่วยเก่าและนัด */}
-                {(patientType === 'returning' || patientType === 'appointment') && (
+                {/* Returning/Appointment patients see the ID input form */}
+                {(patientType === 'returning' || patientType === 'appointment' || isProcessingAppointment) && (
                   <>
                     <div className="space-y-2">
                       <Label htmlFor="patient-id" className="text-lg">
@@ -491,8 +528,8 @@ export default function TicketKiosk() {
                       </div>
                     )}
 
-                    {/* Room Selection - Only show if not appointment or appointment not found */}
-                    {patientType === 'returning' && (
+                    {/* Room Selection - Only show for returning patients without appointment */}
+                    {/* {patientType === 'returning' && !appointmentData && (
                       <div className="space-y-2">
                         <Label className="text-lg">เลือกห้องตรวจ *</Label>
                         <Select value={selectedRoom} onValueChange={setSelectedRoom}>
@@ -511,7 +548,7 @@ export default function TicketKiosk() {
                           </SelectContent>
                         </Select>
                       </div>
-                    )}
+                    )} */}
 
                     {/* Show selected room for appointment */}
                     {patientType === 'appointment' && selectedRoom && (

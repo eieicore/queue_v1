@@ -5,9 +5,49 @@
     <link rel="icon" type="image/png" href="/hospital-building.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MediQueue</title>
+    <script type="module">
+      // Load responsivevoice as a module
+      import { responsiveVoice } from '/assets/responsivevoice.js';
+      
+      // Assign to window for backward compatibility
+      window.responsiveVoice = responsiveVoice;
+      
+      console.log('ResponsiveVoice loaded successfully');
+      console.log('ResponsiveVoice version:', responsiveVoice.version);
+      console.log('Available voices:', responsiveVoice.voices);
+      
+      // Fallback check
+      setTimeout(() => {
+        if (window.responsiveVoice) {
+          console.log('ResponsiveVoice is available');
+        } else {
+          console.error('Failed to load ResponsiveVoice');
+        }
+      }, 1000);
+    </script>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script type="module">
+      // Load responsivevoice as a module
+      import { responsiveVoice } from '/assets/responsivevoice.js';
+      
+      // Assign to window for backward compatibility
+      window.responsiveVoice = responsiveVoice;
+      
+      // Initialize when DOM is ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initResponsiveVoice);
+      } else {
+        initResponsiveVoice();
+      }
+      
+      function initResponsiveVoice() {
+        console.log('ResponsiveVoice loaded successfully');
+        console.log('ResponsiveVoice version:', responsiveVoice.version);
+        console.log('Available voices:', responsiveVoice.voices);
+      }
+    </script>
   </body>
 </html>

@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef, useContext } from "react";
 import { Queue, Room } from "@/api/entities";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowRight } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { ArrowRight, AlertCircle } from "lucide-react";
 
 import LoginGuard from "../components/auth/LoginGuard";
 import PermissionGuard from "../components/auth/PermissionGuard";
@@ -32,6 +32,8 @@ function QueueCallingContent() {
   const [isTransferring, setIsTransferring] = useState(false);
   const [isCallingQueue, setIsCallingQueue] = useState(false);
   const [currentQueueNumber, setCurrentQueueNumber] = useState(null);
+  const [pendingAction, setPendingAction] = useState(null);
+  const [transferDestination, setTransferDestination] = useState(null);
   const announcingRef = useRef(false); // ป้องกันการประกาศซ้อน
 
   useEffect(() => {
@@ -137,7 +139,8 @@ function QueueCallingContent() {
     try {
       await Queue.update(queue.qr_code, {
         status: 'serving',
-        called_at: new Date().toISOString()
+        called_at: new Date().toISOString(),
+        language: selectedLanguage
       });
       
       setLastAction({ 
@@ -157,7 +160,8 @@ function QueueCallingContent() {
   const repeatCall = async () => {
     if (!currentQueue) return;
     await Queue.update(currentQueue.qr_code, {
-      called_at: new Date().toISOString()
+      called_at: new Date().toISOString(),
+      language: selectedLanguage
     });
     setLastAction({ 
       type: 'success', 
@@ -201,6 +205,7 @@ function QueueCallingContent() {
       await Queue.update(qrCode, {
         status: 'serving',
         called_at: new Date().toISOString(),
+        language: selectedLanguage,
         paused_at: null
       });
       const queue = queues.find(q => q.qr_code === qrCode);
@@ -249,10 +254,19 @@ function QueueCallingContent() {
     }
   };
 
-  const transferQueue = async (destinationRoomCode) => {
-    if (!currentQueue) return;
+  const confirmTransfer = (destinationRoomCode) => {
+    const destinationRoom = rooms.find(r => r.room_code === destinationRoomCode);
+    setTransferDestination({
+      roomCode: destinationRoomCode,
+      roomName: destinationRoom?.room_name || destinationRoomCode
+    });
+  };
+
+  const transferQueue = async () => {
+    if (!currentQueue || !transferDestination) return;
     
     try {
+      const destinationRoomCode = transferDestination.roomCode;
       const queueToTransfer = { ...currentQueue };
       let history = [...(queueToTransfer.room_history || [])];
 
@@ -286,9 +300,11 @@ function QueueCallingContent() {
       
       setLastAction({
         type: 'success',
-        message: `ส่งต่อคิว ${currentQueue.queue_number} ไปยัง ${destinationRoom?.room_name || destinationRoomCode} สำเร็จ`
+        message: `ส่งต่อคิว ${currentQueue.queue_number} ไปยัง ${transferDestination.roomName} สำเร็จ`
       });
+      setCurrentQueue(null);
       setIsTransferring(false);
+      setTransferDestination(null);
       // setSelectedRoom(destinationRoomCode); // ไม่เปลี่ยนห้องอัตโนมัติ
       loadData();
     } catch (error) {
@@ -373,13 +389,14 @@ function QueueCallingContent() {
               <QueueControls 
                 onCallNext={callNextQueue}
                 onRepeatCall={repeatCall}
-                onSkip={skipQueue}
-                onPause={pauseQueue}
-                onComplete={completeQueue}
+                onSkip={() => setPendingAction('skip')}
+                onPause={() => setPendingAction('pause')}
+                onComplete={() => setPendingAction('complete')}
                 onTransfer={() => setIsTransferring(true)}
                 hasCurrentQueue={!!currentQueue}
                 hasWaitingQueues={getWaitingQueues().length > 0}
-                simple // ส่ง prop เพื่อบอกให้แสดงแค่ปุ่ม
+                isCallingQueue={isCallingQueue}
+                simple
               />
               {/* กำลังให้บริการอยู่ด้านล่าง */}
               <CurrentQueue 
@@ -390,7 +407,7 @@ function QueueCallingContent() {
               />
             </div>
 
-            <div className="space-y-6 h-auto lg:col-span-2">
+            <div className="space-y-6 h-auto">
               <WaitingList 
                 waitingQueues={getWaitingQueues()} 
                 selectedRoom={selectedRoom} 
@@ -399,22 +416,26 @@ function QueueCallingContent() {
                 onCallQueue={callSpecificQueue}
                 isCalling={isCallingQueue}
                 currentQueueNumber={currentQueueNumber}
+                hasCurrentQueue={!!currentQueue}
               />
              
           </div>
-          <div className="lg:col-span-3">
+          <div className="h-auto">
           <PausedQueues 
                 pausedQueues={getPausedQueues()}
                 onResume={resumeQueue}
                 selectedRoom={selectedRoom}
                 rooms={rooms}
                 selectedLanguage={selectedLanguage}
+                hasCurrentQueue={!!currentQueue}
               />
             </div>
           </div>
         )}
 
-        <Dialog open={isTransferring} onOpenChange={setIsTransferring}>
+        <Dialog open={isTransferring} onOpenChange={(open) => {
+          if (!open) setIsTransferring(false);
+        }}>
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>ส่งต่อคิว {currentQueue?.queue_number}</DialogTitle>
@@ -429,7 +450,7 @@ function QueueCallingContent() {
                       key={room.id}
                       variant="outline"
                       className="h-auto justify-start p-4 hover:bg-blue-50"
-                      onClick={() => transferQueue(room.room_code)}
+                      onClick={() => confirmTransfer(room.room_code)}
                     >
                       <div className="flex-1 text-left">
                         <p className="font-semibold">{room.room_name}</p>
@@ -439,7 +460,92 @@ function QueueCallingContent() {
                     </Button>
                   ))}
               </div>
+              
+              {transferDestination && (
+                <div className="mt-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <AlertCircle className="h-5 w-5 text-yellow-400" />
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-yellow-800">ยืนยันการส่งต่อคิว</h3>
+                      <div className="mt-2 text-sm text-yellow-700">
+                        <p>คุณต้องการส่งคิว {currentQueue?.queue_number} ไปยัง {transferDestination.roomName} ใช่หรือไม่?</p>
+                      </div>
+                      <div className="mt-4 flex space-x-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setTransferDestination(null)}
+                        >
+                          ยกเลิก
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={transferQueue}
+                        >
+                          ยืนยันส่งต่อ
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Confirmation Dialog */}
+        <Dialog open={!!pendingAction} onOpenChange={(open) => {
+          if (!open) setPendingAction(null);
+        }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-yellow-600">
+                <AlertCircle className="w-5 h-5" />
+                {pendingAction === 'callNext' && 'ยืนยันการเรียกคิวถัดไป'}
+                {pendingAction === 'skip' && 'ยืนยันการข้ามคิว'}
+                {pendingAction === 'pause' && 'ยืนยันการพักคิว'}
+                {pendingAction === 'complete' && 'ยืนยันการเสร็จสิ้นคิว'}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              <p className="text-gray-700">
+                {pendingAction === 'callNext' && 'คุณแน่ใจหรือไม่ที่ต้องการเรียกคิวถัดไป?'}
+                {pendingAction === 'skip' && 'คุณแน่ใจหรือไม่ที่ต้องการข้ามคิวนี้?'}
+                {pendingAction === 'pause' && 'คุณแน่ใจหรือไม่ที่ต้องการพักคิวนี้?'}
+                {pendingAction === 'complete' && 'คุณแน่ใจหรือไม่ที่ต้องการปิดการทำงานของคิวนี้?'}
+              </p>
+            </div>
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => setPendingAction(null)}
+                className="mr-2"
+              >
+                ยกเลิก
+              </Button>
+              <Button 
+                variant="destructive"
+                onClick={async () => {
+                  try {
+                    if (pendingAction === 'callNext') await callNextQueue();
+                    else if (pendingAction === 'skip') await skipQueue();
+                    else if (pendingAction === 'pause') await pauseQueue();
+                    else if (pendingAction === 'complete') await completeQueue();
+                    setPendingAction(null); // Close dialog after action completes
+                  } catch (error) {
+                    console.error('Error processing action:', error);
+                  }
+                }}
+                disabled={isCallingQueue}
+              >
+                {isCallingQueue ? 'กำลังดำเนินการ...' : 'ยืนยัน'}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>

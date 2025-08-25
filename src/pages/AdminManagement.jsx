@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Settings, Users, Clock, Volume2, Save, UserPlus } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Toaster } from '@/components/ui/toaster';
 
 import LoginGuard from '../components/auth/LoginGuard';
 import PermissionGuard from '../components/auth/PermissionGuard';
@@ -31,11 +32,14 @@ function AdminManagementContent() {
 
   const loadData = async () => {
     try {
-      const [settingsData, roomsData, usersData] = await Promise.all([
+      const [settingsData, roomsData, usersResponse] = await Promise.all([
         QueueSettings.list(),
         Room.list(),
         User.list()
       ]);
+      
+      // Ensure users is an array
+      const usersData = Array.isArray(usersResponse) ? usersResponse : [];
       
       // Default settings structure that matches the database schema
       const defaultSettings = {
@@ -82,7 +86,7 @@ function AdminManagementContent() {
       });
       
       setRooms(roomsData);
-      setUsers(usersData);
+      setUsers(Array.isArray(usersData) ? usersData : []);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -171,17 +175,42 @@ function AdminManagementContent() {
   const saveUser = async (userData) => {
     try {
       if (userData.id) {
+        // Update existing user
         await User.update(userData.id, userData);
-      } else {
-        // Note: Cannot create users directly, only update existing ones
-        setMessage('ไม่สามารถสร้างผู้ใช้ใหม่ได้ กรุณาใช้ระบบเชิญผู้ใช้');
+        setMessage('อัปเดตข้อมูลผู้ใช้เรียบร้อยแล้ว');
       }
       loadData();
-      setMessage('บันทึกข้อมูลผู้ใช้เรียบร้อยแล้ว');
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
-      setMessage('เกิดข้อผิดพลาดในการบันทึกข้อมูลผู้ใช้');
       console.error('Error saving user:', error);
+      throw error; // Re-throw to be handled by the component
+    }
+  };
+
+  const createUser = async (userData) => {
+    try {
+      const { password, confirmPassword, ...userProfile } = userData;
+      
+      // Create a new user with email/password
+      const { user, error } = await User.signUp({
+        ...userData,
+        username: userData.username || userData.email.split('@')[0]
+      });
+
+      if (error) throw error;
+      
+      // Refresh the users list
+      const usersResponse = await User.list();
+      setUsers(Array.isArray(usersResponse) ? usersResponse : []);
+      
+      setMessage('เพิ่มผู้ใช้ใหม่เรียบร้อยแล้ว');
+      loadData();
+      setTimeout(() => setMessage(''), 3000);
+      
+      return user;
+    } catch (error) {
+      console.error('Error creating user:', error);
+      throw error; // Re-throw to be handled by the component
     }
   };
 
@@ -208,7 +237,7 @@ function AdminManagementContent() {
         )}
 
         <Tabs defaultValue="ticket-format" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="ticket-format" className="flex items-center gap-2">
               <Settings className="w-4 h-4" />
               รูปแบบบัตร
@@ -221,10 +250,10 @@ function AdminManagementContent() {
               <UserPlus className="w-4 h-4" />
               จัดการผู้ใช้
             </TabsTrigger>
-            <TabsTrigger value="system" className="flex items-center gap-2">
+            {/* <TabsTrigger value="system" className="flex items-center gap-2">
               <Volume2 className="w-4 h-4" />
               ตั้งค่าระบบ
-            </TabsTrigger>
+            </TabsTrigger> */}
           </TabsList>
 
           <TabsContent value="ticket-format">
@@ -240,6 +269,7 @@ function AdminManagementContent() {
               rooms={rooms}
               onSave={saveRoom}
               onDelete={deleteRoom}
+              isSaving={isSaving}
             />
           </TabsContent>
 
@@ -247,14 +277,7 @@ function AdminManagementContent() {
             <UserManagement 
               users={users}
               onSave={saveUser}
-            />
-          </TabsContent>
-
-          <TabsContent value="system">
-            <SystemSettings 
-              settings={settings}
-              onSave={saveSettings}
-              isSaving={isSaving}
+              onCreate={createUser}
             />
           </TabsContent>
         </Tabs>
@@ -268,6 +291,7 @@ export default function AdminManagement() {
     <LoginGuard>
       <PermissionGuard requiredLevel="admin">
         <AdminManagementContent />
+        <Toaster />
       </PermissionGuard>
     </LoginGuard>
   );
