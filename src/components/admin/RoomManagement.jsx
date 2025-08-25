@@ -5,11 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Building, Plus, Edit, Save, X, Languages, Trash2, GripVertical, ChevronUp, ChevronDown } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Building, Plus, Edit, Save, X, Languages, Trash2, GripVertical, ChevronUp, ChevronDown, User } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
-export default function RoomManagement({ rooms, onSave, onDelete }) {
+export default function RoomManagement({ rooms, users = [], onSave, onDelete }) {
   const [editingRoom, setEditingRoom] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [sortedRooms, setSortedRooms] = useState([]);
@@ -17,10 +18,9 @@ export default function RoomManagement({ rooms, onSave, onDelete }) {
     room_name: '',
     room_code: '',
     department: '',
-    is_active: true,
-    staff_assigned: '',
+    staff_assigned: null,  
     average_service_time: 15,
-    display_order: 0,
+    is_active: true,
     room_names: {
       th: '',
       en: '',
@@ -31,6 +31,7 @@ export default function RoomManagement({ rooms, onSave, onDelete }) {
   React.useEffect(() => {
     // จัดเรียงห้องตาม display_order
     const sorted = [...rooms].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+    console.log('sortedRooms:', sorted);
     setSortedRooms(sorted);
   }, [rooms]);
 
@@ -58,7 +59,7 @@ export default function RoomManagement({ rooms, onSave, onDelete }) {
       room_code: '',
       department: '',
       is_active: true,
-      staff_assigned: '',
+      staff_assigned: null,
       average_service_time: 15,
       display_order: rooms.length,
       room_names: {
@@ -245,14 +246,26 @@ export default function RoomManagement({ rooms, onSave, onDelete }) {
                             placeholder="เช่น อายุรกรรม"
                           />
                         </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="staff">เจ้าหน้าที่ประจำ</Label>
-                          <Input
-                            id="staff"
-                            value={formData.staff_assigned}
-                            onChange={(e) => setFormData({...formData, staff_assigned: e.target.value})}
-                            placeholder="เช่น นพ.สมชาย"
-                          />
+                        <div className="grid gap-2">
+                          <Label htmlFor="staff_assigned">เจ้าหน้าที่ประจำห้อง</Label>
+                          <Select
+                            value={formData.staff_assigned || 'none'}
+                            onValueChange={(value) => setFormData({ ...formData, staff_assigned: value === 'none' ? null : value })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="เลือกเจ้าหน้าที่" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">ไม่มีผู้ดูแล</SelectItem>
+                              {users
+                                .sort((a, b) => a.full_name.localeCompare(b.full_name))
+                                .map((user) => (
+                                  <SelectItem key={user.id} value={user.id}>
+                                    {user.full_name} ({user.username}) {user.access_level ? `[${user.access_level}]` : ''}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="service-time">เวลาบริการเฉลี่ย (นาที)</Label>
@@ -378,7 +391,9 @@ export default function RoomManagement({ rooms, onSave, onDelete }) {
                                       <h3 className="font-medium text-slate-900">{room.room_name}</h3>
                                       <p className="text-sm text-slate-500">{room.department}</p>
                                       {room.staff_assigned && (
-                                        <p className="text-sm text-slate-600">เจ้าหน้าที่: {room.staff_assigned}</p>
+                                        <p className="text-sm text-slate-600">
+                                          เจ้าหน้าที่: {users.find(u => u.id === room.staff_assigned)?.full_name || room.staff_assigned}
+                                        </p>
                                       )}
                                       {room.room_names && (room.room_names.th || room.room_names.en || room.room_names.zh) && (
                                         <div className="text-xs text-slate-500 mt-1">

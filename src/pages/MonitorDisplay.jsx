@@ -15,11 +15,12 @@ const LANGUAGE_VOICES = {
 export default function MonitorDisplay() {
   const [rooms, setRooms] = useState([]);
   const [servingQueues, setServingQueues] = useState([]);
-  const [allQueues, setAllQueues] = useState([]); // New state for all queues
+  const [allQueues, setAllQueues] = useState([]);
+  const [users, setUsers] = useState([]); // New state for users
   const [recentlyCalled, setRecentlyCalled] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [currentPage, setCurrentPage] = useState(0); // New state for pagination
-  const lastAnnouncedQueue = useRef({}); // เปลี่ยนเป็น object เก็บ queue ต่อห้อง
+  const [currentPage, setCurrentPage] = useState(0);
+  const lastAnnouncedQueue = useRef({});
   const hasMarkedInitial = useRef(false);
   const { selectedLanguage: contextLanguage } = useContext(LanguageContext);
   const [selectedLanguage, setSelectedLanguage] = useState(() => localStorage.getItem('queue_selected_language') || contextLanguage || 'th');
@@ -288,8 +289,9 @@ export default function MonitorDisplay() {
     // Set current room announcement
     currentRoomAnnouncement.current = queue.room_id;
     
-    // Determine language for this announcement: use queue.language if available, else selectedLanguage
-    const announceLang = queue.language || selectedLanguage;
+    // Always prioritize the user's selected language for announcements
+    const announceLang = selectedLanguage;
+    console.log('Announcement language:', announceLang, 'Queue language:', queue.language, 'Selected language:', selectedLanguage);
     // Get the room name in the announcement language
     const room = rooms.find(r => r.room_code === queue.room_id);
     const localizedRoomName = room ? (room.room_names?.[announceLang] || room.room_name || queue.room_id) : queue.room_id;
@@ -500,6 +502,16 @@ export default function MonitorDisplay() {
 
   const loadData = async () => {
     try {
+      // ดึงข้อมูลผู้ใช้
+      const usersRes = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/user?select=*', {
+        headers: {
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY',
+          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY'
+        }
+      });
+      const usersData = await usersRes.json();
+      setUsers(usersData || []);
+
       // ดึงข้อมูลห้อง
       const roomRes = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/rooms', {
         headers: {
@@ -519,10 +531,9 @@ export default function MonitorDisplay() {
       });
       const queuesData = await queueRes.json();
       setAllQueues(queuesData);
-      // กำลังให้บริการ: status = 'serving' หรือ 'called'
       setServingQueues(queuesData.filter(q => q.status === 'serving' || q.status === 'called'));
     } catch (error) {
-      console.error('Error loading rooms/queues:', error);
+      console.error('Error loading data:', error);
     }
   };
 
@@ -803,7 +814,9 @@ export default function MonitorDisplay() {
                     {room.staff_assigned && (
                       <div className="mt-2 text-center">
                         <p className="text-blue-600 text-sm font-medium">เจ้าหน้าที่ประจำ</p>
-                        <p className="text-gray-800 font-semibold">{room.staff_assigned}</p>
+                        <p className="text-gray-800 font-semibold">
+                          {room.staff_assigned ? (users.find(u => u.id === room.staff_assigned)?.full_name || 'ไม่ระบุ') : 'ไม่มีผู้ดูแล'}
+                        </p>
                       </div>
                     )}
                   </div>

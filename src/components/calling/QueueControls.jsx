@@ -23,6 +23,7 @@ export default function QueueControls({
             onClick={onCallNext}
             disabled={!hasWaitingQueues || hasCurrentQueue || isCallingQueue}
             className="bg-blue-500 hover:bg-blue-600 text-white h-12 flex items-center gap-2 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            title={hasCurrentQueue ? 'กรุณาจบการให้บริการคิวปัจจุบันก่อน' : ''}
           >
             <Phone className="w-5 h-5" />
             {isCallingQueue ? 'กำลังดำเนินการ...' : 'เรียกถัดไป'}

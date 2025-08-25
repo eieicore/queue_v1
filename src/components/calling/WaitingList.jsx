@@ -100,77 +100,97 @@ export default function WaitingList({
           </Badge>
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-13">
-        <div className="max-h-96 overflow-y-auto">
+      <CardContent className="p-0">
+        <div className="max-h-64 overflow-y-auto">
           {sortedQueues.length > 0 ? (
-            <div className="space-y-6">
+            <div className="p-4 space-y-3">
               {sortedQueues.map((queue, index) => {
                 const triageInfo = triageStyles[queue.triage_level] || triageStyles['non_urgent'];
                 const waitTime = getWaitTime(queue.created_date);
-                console.log('Wait time:', waitTime);
                 const isNewQueue = waitTime < 2;
                 const isLongWait = waitTime >= 30;
                 const bgColor = isNewQueue 
-                  ? 'bg-green-200 border-green-200' 
+                  ? 'bg-green-100 border-green-200' 
                   : isLongWait 
-                    ? 'bg-red-500 border-red-200' 
-                    : 'hover:bg-slate-50 border-slate-100';
+                    ? 'bg-red-100 border-red-200' 
+                    : 'bg-blue-50 border-blue-100';
+                    
                 return (
-                  <div key={queue.id} className={`p-3 border rounded-lg transition-colors ${bgColor}`}>
-                    <div className="flex items-center justify-between mb-2">
+                  <div 
+                    key={queue.id} 
+                    className={`p-3 border rounded-lg transition-colors ${bgColor} hover:bg-opacity-70`}
+                  >
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 ${triageInfo.color} rounded-lg flex items-center justify-center font-bold`}>
+                        <div className={`w-10 h-10 ${triageInfo.color} rounded-lg flex items-center justify-center text-white font-bold`}>
                           {index + 1}
                         </div>
                         <div className="flex items-center gap-2">
                           <div>
                             <p className="font-medium text-slate-900">{queue.queue_number}</p>
-                            <Badge
-                              variant="outline"
-                              className={`${patientTypeColors[queue.patient_type]} text-xs`}
-                            >
-                              {getPatientTypeLabel(queue.patient_type)}
-                            </Badge>
+                            <div className="flex gap-1 mt-1">
+                              <Badge
+                                variant="outline"
+                                className={`${patientTypeColors[queue.patient_type]} text-xs`}
+                              >
+                                {getPatientTypeLabel(queue.patient_type)}
+                              </Badge>
+                              <Badge variant="outline" className="bg-slate-100 text-slate-700 text-xs">
+                                {triageInfo.label}
+                              </Badge>
+                            </div>
                           </div>
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onCallQueue(queue);
-                            }}
-                            disabled={hasCurrentQueue || (isCalling && currentQueueNumber === queue.queue_number)}
-                            className={`ml-2 px-3 py-1 text-sm rounded-md transition-colors ${
-                              hasCurrentQueue || (isCalling && currentQueueNumber === queue.queue_number)
-                                ? 'bg-blue-400 text-white cursor-not-allowed' 
-                                : 'bg-blue-600 text-white hover:bg-blue-700'
-                            }`}
-                            title={hasCurrentQueue ? 'กรุณาจบการให้บริการคิวปัจจุบันก่อน' : ''}
-                          >
-                            {isCalling && currentQueueNumber === queue.queue_number ? 'กำลังเรียก...' : 'เรียกคิว'}
-                          </button>
                         </div>
                       </div>
-                      <Badge className={triageInfo.color}>{triageInfo.label}</Badge>
-                    </div>
-                    <div className="flex items-center justify-between text-sm text-slate-600">
-                      <div className="flex items-center gap-1">
-                        <Clock className="w-4 h-4" />
-                        รอ: {getWaitTime(queue.created_date) === '-' ? '-' : `${getWaitTime(queue.created_date)} นาที`}
+                      <div className="text-right">
+                        <p className="text-sm text-slate-600">
+                          {formatTime(queue.created_date)}
+                        </p>
+                        <div className="text-xs text-slate-500 flex items-center gap-1 justify-end">
+                          <Clock className="w-3 h-3" />
+                          <span>รอ {waitTime} นาที</span>
+                        </div>
                       </div>
-                      <div>{formatTime(queue.created_date)}</div>
                     </div>
-                    {queue.patient_id && (
-                      <div className="text-xs text-slate-500 mt-1">
-                        รหัส: {queue.patient_id}
+                    {queue.note && (
+                      <div className="mt-2 text-xs text-slate-600 bg-white/50 p-2 rounded border border-slate-100">
+                        <span className="font-medium">หมายเหตุ: </span>
+                        {queue.note}
                       </div>
                     )}
+                    <div className="mt-3 flex justify-end">
+                      <button
+                        onClick={() => onCallQueue(queue)}
+                        disabled={hasCurrentQueue || (isCalling && currentQueueNumber === queue.queue_number)}
+                        className={`px-4 py-2 text-sm rounded-md transition-colors ${
+                          hasCurrentQueue || (isCalling && currentQueueNumber === queue.queue_number)
+                            ? 'bg-blue-400 text-white cursor-not-allowed' 
+                            : 'bg-blue-600 text-white hover:bg-blue-700'
+                        } flex items-center`}
+                        title={hasCurrentQueue ? 'กรุณาจบการให้บริการคิวปัจจุบันก่อน' : ''}
+                      >
+                        {isCalling && currentQueueNumber === queue.queue_number ? (
+                          <>
+                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            กำลังเรียก...
+                          </>
+                        ) : 'เรียกคิวนี้'}
+                      </button>
+                    </div>
                   </div>
                 );
               })}
             </div>
           ) : (
-            <div className="p-8 text-center text-slate-500">
-              <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>ไม่มีคิวรอสำหรับ {getRoomName(rooms.find(r => r.room_code === selectedRoom), selectedLanguage)}</p>
+            <div className="p-6 text-center text-slate-500">
+              {selectedRoomData ? (
+                <p>ไม่มีคิวที่รออยู่ใน{getRoomName(selectedRoomData, selectedLanguage)}</p>
+              ) : (
+                <p>กรุณาเลือกห้องเพื่อดูคิวที่รออยู่</p>
+              )}
             </div>
           )}
         </div>

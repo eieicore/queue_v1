@@ -35,6 +35,28 @@ function QueueCallingContent() {
   const [pendingAction, setPendingAction] = useState(null);
   const [transferDestination, setTransferDestination] = useState(null);
   const announcingRef = useRef(false); // ป้องกันการประกาศซ้อน
+  
+  // Get current user from localStorage
+  const currentUser = React.useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user")) || {};
+    } catch {
+      return {};
+    }
+  }, []);
+  
+  // Filter rooms based on user role and assigned rooms
+  const filteredRooms = React.useMemo(() => {
+    if (!currentUser) return [];
+    
+    // If user is admin, show all rooms
+    if (currentUser.access_level === 'admin') {
+      return rooms;
+    }
+    
+    // Otherwise, show only rooms assigned to the user
+    return rooms.filter(room => room.staff_assigned === currentUser.id);
+  }, [rooms, currentUser]);
 
   useEffect(() => {
     loadData();
@@ -360,11 +382,12 @@ function QueueCallingContent() {
 
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
-            <RoomSelector 
-              rooms={rooms}
+            <RoomSelector
+              rooms={filteredRooms}
               selectedRoom={selectedRoom}
               setSelectedRoom={setSelectedRoom}
-              selectedLanguage={selectedLanguage}
+              currentUser={currentUser}
+              isLoading={isLoading}
             />
           </div>
           <div className="md:w-64">

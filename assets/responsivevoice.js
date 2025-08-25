@@ -3463,6 +3463,8 @@ else
       a.getServiceEnabled = function (b) {
         return a.servicesEnabled[b] || !1;
       };
+      // Enable native TTS and disable remote fallback audio to avoid external HTTP calls
+      // This prevents requests like https://code.responsivevoice.org/getvoice.php which can 502
       a.setServiceEnabled(a.services.NATIVE_TTS, !0);
       a.setServiceEnabled(a.services.FALLBACK_AUDIO, !0);
       a.forceFallbackMode = function (b) {

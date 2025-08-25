@@ -49,7 +49,7 @@ function AdminManagementContent() {
           appointment_prefix: 'A'
         },
         voice_announcements: true,
-        auto_skip_timeout: 5,
+        auto_skip_timeout: 10,
         email_notifications: false,
         working_hours: {
           monday: { open: '08:00', close: '17:00' },
@@ -267,9 +267,9 @@ function AdminManagementContent() {
           <TabsContent value="rooms">
             <RoomManagement 
               rooms={rooms}
+              users={users}
               onSave={saveRoom}
               onDelete={deleteRoom}
-              isSaving={isSaving}
             />
           </TabsContent>
 

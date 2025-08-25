@@ -368,7 +368,7 @@ currentUser = getCurrentUser();
 export const User = {
   list: async () => {
     const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
-    const res = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/user', {
+    const res = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/user?select=id,username,full_name,email,phone,position,department,access_level,is_active,created_at,updated_at', {
       headers: {
         'apikey': API_KEY,
         'Authorization': `Bearer ${API_KEY}`
@@ -560,11 +560,25 @@ export const User = {
   update: async (id, data) => {
     const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
     
-    // Prepare the update data
+    // Prepare the update data - exclude any undefined or null values and the assigned_rooms field
+    const { assigned_rooms, ...cleanData } = data;
     const updateData = {
-      ...data,
+      ...cleanData,
       updated_at: new Date().toISOString()
     };
+    
+    // Only include fields that exist in the user table
+    const validUserFields = [
+      'full_name', 'email', 'phone', 'department', 'position', 
+      'access_level', 'is_active', 'updated_at'
+    ];
+    
+    const filteredUpdateData = Object.keys(updateData)
+      .filter(key => validUserFields.includes(key))
+      .reduce((obj, key) => {
+        obj[key] = updateData[key];
+        return obj;
+      }, {});
     
     // Update user profile in the users table
     const res = await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/user?id=eq.${id}`, {
@@ -575,20 +589,21 @@ export const User = {
         'Authorization': `Bearer ${API_KEY}`,
         'Prefer': 'return=representation'
       },
-      body: JSON.stringify(updateData)
+      body: JSON.stringify(filteredUpdateData)
     });
     
     if (!res.ok) {
       const error = await res.json();
+      console.error('Error updating user:', error);
       throw new Error(error.message || 'Failed to update user');
     }
     
-    const result = await res.json();
+    const result = await res.json().catch(() => ({}));
     const updatedUser = Array.isArray(result) ? result[0] : result;
     
     // Update current user data if it's the current user
     if (currentUser && currentUser.id === id) {
-      currentUser = { ...currentUser, ...updateData };
+      currentUser = { ...currentUser, ...filteredUpdateData };
       localStorage.setItem('currentUser', JSON.stringify(currentUser));
     }
     
