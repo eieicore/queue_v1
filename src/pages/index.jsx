@@ -31,7 +31,6 @@ function ProtectedRoutes() {
           <Route path="queuecalling" element={<QueueCalling />} />
           <Route path="adminmanagement" element={<AdminManagement />} />
           <Route path="monitordisplay" element={<Navigate to="/monitordisplay" replace state={{ from: 'protected' }} />} />
-          <Route path="ticketkiosk" element={<TicketKiosk />} />
           <Route path="reports" element={<Reports />} />
           <Route path="appointmentmanagement" element={<AppointmentManagement />} />
         </Routes>
@@ -50,6 +49,7 @@ export default function Pages() {
           {/* 1) Public routes: ไม่ต้อง login */}
           <Route path="/queuestatus" element={<QueueStatus />} />
           <Route path="/monitordisplay" element={<MonitorDisplay />} />
+          <Route path="/ticketkiosk" element={<TicketKiosk />} />
 
           {/* 2) Protected routes: หุ้มด้วย Layout (มี LoginGuard) */}
           <Route path="/*" element={<ProtectedRoutes />} />
