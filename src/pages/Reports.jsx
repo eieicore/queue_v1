@@ -432,7 +432,7 @@ function ReportsContent() {
                             </div>
                           </div>
                         </DialogTrigger>
-                        <DialogContent className="max-w-2xl">
+                        <DialogContent className="max-w-2xl" aria-describedby="journey-details-desc">
                           <DialogHeader>
                             <DialogTitle>
                               รายละเอียดการเดินทาง: คิว {journey.queue_number}

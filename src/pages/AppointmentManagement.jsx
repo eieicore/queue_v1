@@ -304,7 +304,7 @@ function AppointmentManagementContent() {
                     เพิ่มการนัดหมาย
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-2xl">
+                <DialogContent className="max-w-2xl" aria-describedby="appointment-form-desc">
                   <DialogHeader>
                     <DialogTitle>
                       {editingAppointment ? 'แก้ไขการนัดหมาย' : 'เพิ่มการนัดหมาย'}
