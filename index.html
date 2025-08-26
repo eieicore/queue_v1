@@ -5,49 +5,54 @@
     <link rel="icon" type="image/png" href="/hospital-building.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MediQueue</title>
-    <script type="module">
-      // Load responsivevoice as a module
-      import { responsiveVoice } from '/assets/responsivevoice.js';
-      
-      // Assign to window for backward compatibility
-      window.responsiveVoice = responsiveVoice;
-      
-      console.log('ResponsiveVoice loaded successfully');
-      console.log('ResponsiveVoice version:', responsiveVoice.version);
-      console.log('Available voices:', responsiveVoice.voices);
-      
-      // Fallback check
-      setTimeout(() => {
-        if (window.responsiveVoice) {
-          console.log('ResponsiveVoice is available');
-        } else {
-          console.error('Failed to load ResponsiveVoice');
-        }
-      }, 1000);
-    </script>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-    <script type="module">
-      // Load responsivevoice as a module
-      import { responsiveVoice } from '/assets/responsivevoice.js';
-      
-      // Assign to window for backward compatibility
-      window.responsiveVoice = responsiveVoice;
-      
-      // Initialize when DOM is ready
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initResponsiveVoice);
-      } else {
+    <!-- Load ResponsiveVoice from CDN -->
+  <script src="https://code.responsivevoice.org/responsivevoice.js?key=b08U7IYJ"></script>
+  <script>
+    // Create a promise that resolves when ResponsiveVoice is ready
+    window.ResponsiveVoiceReady = new Promise((resolve) => {
+      // Check if ResponsiveVoice is already loaded
+      if (window.responsiveVoice) {
         initResponsiveVoice();
+      } else {
+        // Fallback in case the CDN fails
+        setTimeout(() => {
+          if (window.responsiveVoice) {
+            initResponsiveVoice();
+          } else {
+            console.warn('Failed to load ResponsiveVoice from CDN, falling back to Web Speech API');
+            resolve(null);
+          }
+        }, 1000);
       }
-      
+
       function initResponsiveVoice() {
-        console.log('ResponsiveVoice loaded successfully');
-        console.log('ResponsiveVoice version:', responsiveVoice.version);
-        console.log('Available voices:', responsiveVoice.voices);
+        console.log('ResponsiveVoice loaded, initializing...');
+        try {
+          // Initialize with silent audio
+          window.responsiveVoice.speak(' ', 'UK English Female', {
+            onstart: () => {
+              console.log('ResponsiveVoice audio context initialized');
+              resolve(window.responsiveVoice);
+            },
+            onerror: (e) => {
+              console.error('ResponsiveVoice init error:', e);
+              resolve(window.responsiveVoice); // Still resolve but log the error
+            },
+            volume: 0,
+            rate: 1,
+            pitch: 1
+          });
+        } catch (e) {
+          console.error('Error initializing ResponsiveVoice:', e);
+          resolve(null);
+        }
       }
+    });
+  </script>
+    <script type="module" src="/src/main.jsx"></script>
     </script>
   </body>
 </html>

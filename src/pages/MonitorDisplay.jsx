@@ -145,53 +145,52 @@ export default function MonitorDisplay() {
   const handleUserInteraction = useCallback(() => {
     if (!hasUserInteracted) {
       setHasUserInteracted(true);
-      console.log('Auto-enabling audio...');
+      console.log('Initializing audio...');
       
-      // Play a silent audio to enable audio context
-      const silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQ=');
-      silentAudio.volume = 0;
-      
-      const initializeAudio = () => {
-        // Try to speak a test message with ResponsiveVoice
-        if (window.responsiveVoice) {
-          console.log('Initializing ResponsiveVoice...');
+      const initializeAudio = async () => {
+        try {
+          // Wait for ResponsiveVoice to be ready
+          if (window.ResponsiveVoiceReady) {
+            console.log('Waiting for ResponsiveVoice to be ready...');
+            const rv = await window.ResponsiveVoiceReady;
+            
+            if (rv) {
+              console.log('ResponsiveVoice initialized successfully');
+              // Process any pending announcements
+              if (pendingAnnouncements.current?.length > 0) {
+                console.log('Processing', pendingAnnouncements.current.length, 'pending announcements');
+                processNextAnnouncement(true);
+              }
+              return;
+            }
+          }
           
-          // Speak with a very short delay to ensure the audio context is ready
-          setTimeout(() => {
-            window.responsiveVoice.speak(' ', 'UK English Female', { 
-              onstart: () => {
-                console.log('Audio context initialized successfully');
-                // Process any pending announcements
-                if (pendingAnnouncements.current?.length > 0) {
-                  console.log('Processing', pendingAnnouncements.current.length, 'pending announcements');
-                  processNextAnnouncement(true);
-                }
-              },
-              volume: 0
-            });
-          }, 100);
-        } else if (window.speechSynthesis) {
           // Fallback to Web Speech API if ResponsiveVoice is not available
-          console.log('ResponsiveVoice not available, using Web Speech API');
-          const utterance = new window.SpeechSynthesisUtterance(' ');
-          utterance.onstart = () => {
-            console.log('Web Speech API audio context initialized');
-            processNextAnnouncement(true);
-          };
-          window.speechSynthesis.speak(utterance);
+          if (window.speechSynthesis) {
+            console.log('ResponsiveVoice not available, using Web Speech API');
+            const utterance = new window.SpeechSynthesisUtterance(' ');
+            utterance.onstart = () => {
+              console.log('Web Speech API audio context initialized');
+              processNextAnnouncement(true);
+            };
+            window.speechSynthesis.speak(utterance);
+          }
+        } catch (e) {
+          console.error('Error initializing audio:', e);
+          // Try Web Speech API as fallback
+          if (window.speechSynthesis) {
+            const utterance = new window.SpeechSynthesisUtterance(' ');
+            utterance.onstart = () => {
+              console.log('Fallback Web Speech API audio context initialized');
+              processNextAnnouncement(true);
+            };
+            window.speechSynthesis.speak(utterance);
+          }
         }
       };
       
-      // Play silent audio and initialize audio context
-      silentAudio.play()
-        .then(() => {
-          console.log('Silent audio played successfully');
-          initializeAudio();
-        })
-        .catch(e => {
-          console.warn('Silent audio play failed, trying to initialize anyway:', e);
-          initializeAudio();
-        });
+      // Start audio initialization
+      initializeAudio();
     }
   }, [hasUserInteracted]);
 
