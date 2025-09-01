@@ -619,8 +619,8 @@ export default function MonitorDisplay() {
               <div className="w-full flex flex-col" style={contentHeight ? { height: contentHeight } : undefined}>
                 <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-md overflow-hidden flex-1 flex flex-col">
                   <div className="grid grid-cols-2 bg-blue-700 text-white font-semibold text-center py-3">
-                    <div className="text-lg">ห้องตรวจ</div>
                     <div className="text-lg">คิวที่กำลังเรียก</div>
+                    <div className="text-lg">ห้องตรวจ</div>
                   </div>
                   <div className="flex-1 min-h-0 grid grid-rows-8 px-8 py-4">
                     {currentRooms.map((room, index) => {
@@ -636,15 +636,7 @@ export default function MonitorDisplay() {
                           key={room.room_code || room.id}
                           className="grid grid-cols-2 hover:bg-blue-50/50 transition-colors h-full"
                         >
-                          <div className="p-2 border-r border-b border-gray-100 flex flex-col justify-center h-full w-full">
-                            <div className="font-semibold text-gray-800 text-3xl leading-tight">{getRoomName(room, 'th')}</div>
-                            {/* <div className="text-gray-600 text-sm leading-tight">{getRoomName(room, 'en')}</div>
-                            <div className="mt-1">
-                              <Badge variant="outline" className="text-xs border-blue-200 bg-blue-50 text-blue-700 px-2 py-0.5">
-                                {room.department}
-                              </Badge>
-                            </div> */}
-                          </div>
+                          
                           <div className="p-2 flex flex-col items-center justify-center h-full w-full border-b border-gray-100">
                             {queue ? (
                               <>
@@ -661,6 +653,15 @@ export default function MonitorDisplay() {
                                 รออีก {waitingCount} คิว
                               </div>
                             )}
+                          </div>
+                          <div className="p-2 border-r border-b border-gray-100 flex flex-col justify-center h-full w-full text-center">
+                            <div className="font-semibold text-gray-800 text-3xl leading-tight">{getRoomName(room, 'th')}</div>
+                            {/* <div className="text-gray-600 text-sm leading-tight">{getRoomName(room, 'en')}</div>
+                            <div className="mt-1">
+                              <Badge variant="outline" className="text-xs border-blue-200 bg-blue-50 text-blue-700 px-2 py-0.5">
+                                {room.department}
+                              </Badge>
+                            </div> */}
                           </div>
                         </div>
                       );

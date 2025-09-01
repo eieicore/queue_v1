@@ -14,6 +14,7 @@ import { format, isSameDay, isSameMonth, isSameYear, parse } from 'date-fns';
 import { th } from 'date-fns/locale';
 
 import LoginGuard from '../components/auth/LoginGuard';
+import * as XLSX from 'xlsx';
 
 function ReportsContent() {
   const [reportData, setReportData] = useState([]);
@@ -217,13 +218,49 @@ function ReportsContent() {
     document.body.removeChild(link);
   };
 
+  // Excel export for Service Time tab
+  const exportServiceTimeToExcel = () => {
+    const data = reportData.map(d => ({
+      Room: d.room_name,
+      'Total Patients': d.total_patients,
+      'Average Service Time (minutes)': d.average_time,
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Service Time');
+    XLSX.writeFile(workbook, `service_time_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  // Excel export for Queue Journey tab
+  const exportJourneyToExcel = () => {
+    const data = queueJourneyData.map(d => ({
+      'Queue Number': d.queue_number,
+      'Patient Type': d.patient_type,
+      'Patient Name': d.patient_name || '',
+      'Total Time (min)': d.total_journey_time,
+      'Rooms Visited': d.rooms_visited,
+      'Room Journey': d.room_history.map(r => `${r.room_name}(${r.duration_minutes ?? 0}min)`).join(' -> '),
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Queue Journey');
+    XLSX.writeFile(workbook, `queue_journey_report_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   const exportSatisfactionToCsv = () => {
-    const headers = "Date,Queue Number,Room,Rating,Comments";
-    const rows = satisfactionReportData.map(d => {
-      const date = format(new Date(d.created_date), 'yyyy-MM-dd HH:mm');
+    const headers = "Date,Queue Number,Rating,Comments";
+    const rows = filteredSatisfactionData.map(d => {
+      const dateSrc = d.completed_at || d.created_date;
+      let date = '-';
+      if (dateSrc) {
+        const dt = new Date(dateSrc);
+        if (!isNaN(dt.getTime())) {
+          date = format(dt, 'yyyy-MM-dd HH:mm');
+        }
+      }
       // Escape double quotes in comments by replacing them with two double quotes
       const comments = `"${(d.comments || '').replace(/"/g, '""')}"`;
-      return `${date},${d.queue_number},${d.room_name},${d.rating},${comments}`;
+      return `${date},${d.queue_number},${d.rating},${comments}`;
     });
     const csvContent = "data:text/csv;charset=utf-8," + headers + "\n" + rows.join("\n");
     
@@ -233,6 +270,26 @@ function ReportsContent() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const exportSatisfactionToExcel = () => {
+    // Prepare data without room name using the current filtered dataset
+    const data = filteredSatisfactionData.map(d => ({
+      Date: (() => {
+        const dateSrc = d.completed_at || d.created_date;
+        if (!dateSrc) return '-';
+        const dt = new Date(dateSrc);
+        return isNaN(dt.getTime()) ? '-' : format(dt, 'yyyy-MM-dd HH:mm');
+      })(),
+      'Queue Number': d.queue_number,
+      Rating: d.rating,
+      Comments: d.comments || ''
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Satisfaction');
+    XLSX.writeFile(workbook, `satisfaction_report_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   // ฟังก์ชัน filter satisfaction ตามวันที่
@@ -336,10 +393,16 @@ function ReportsContent() {
                   <BarChart3 className="w-5 h-5 text-blue-600" />
                   เวลาให้บริการเฉลี่ยต่อห้อง (นาที)
                 </CardTitle>
-                <Button onClick={exportToCsv} disabled={reportData.length === 0} variant="outline">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export CSV
-                </Button>
+                <div className="flex gap-2">
+                  {/* <Button onClick={exportToCsv} disabled={reportData.length === 0} variant="outline">
+                    <Download className="w-4 h-4 mr-2" />
+                    Export CSV
+                  </Button> */}
+                  <Button onClick={exportServiceTimeToExcel} disabled={reportData.length === 0} variant="outline">
+                    <Download className="w-4 h-4 mr-2" />
+                    Export Excel
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="h-96">
                 {reportData.length > 0 ? (
@@ -376,10 +439,16 @@ function ReportsContent() {
                   <MapPin className="w-5 h-5 text-blue-600" />
                   รายงานการเดินทางของคิว
                 </CardTitle>
-                <Button onClick={exportJourneyToCsv} disabled={queueJourneyData.length === 0} variant="outline">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export CSV
-                </Button>
+                <div className="flex gap-2">
+                  {/* <Button onClick={exportJourneyToCsv} disabled={queueJourneyData.length === 0} variant="outline">
+                    <Download className="w-4 h-4 mr-2" />
+                    Export CSV
+                  </Button> */}
+                  <Button onClick={exportJourneyToExcel} disabled={queueJourneyData.length === 0} variant="outline">
+                    <Download className="w-4 h-4 mr-2" />
+                    Export Excel
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="max-h-96 overflow-y-auto">
                 {queueJourneyData.length > 0 ? (
@@ -610,9 +679,13 @@ function ReportsContent() {
                   รายงานความพึงพอใจ
                 </CardTitle>
                 <div className="flex flex-col md:flex-row gap-2 md:items-center">
-                  <Button onClick={exportSatisfactionToCsv} disabled={satisfactionReportData.length === 0} variant="outline">
+                  {/* <Button onClick={exportSatisfactionToCsv} disabled={filteredSatisfactionData.length === 0} variant="outline">
                     <Download className="w-4 h-4 mr-2" />
                     Export CSV
+                  </Button> */}
+                  <Button onClick={exportSatisfactionToExcel} disabled={filteredSatisfactionData.length === 0} variant="outline">
+                    <Download className="w-4 h-4 mr-2" />
+                    Export Excel
                   </Button>
                   <div className="flex gap-2 items-center">
                     <Button variant={satisfactionFilterType === 'day' ? 'default' : 'outline'} size="sm" onClick={() => setSatisfactionFilterType('day')}>รายวัน</Button>
@@ -679,7 +752,7 @@ function ReportsContent() {
                         <div className="flex items-start justify-between">
                           <div>
                             <p className="font-semibold text-slate-800">คิว: {survey.queue_number ?? '-'}</p>
-                            <p className="text-sm text-slate-500">ห้อง: {survey.room_name ?? '-'}</p>
+                            {/* <p className="text-sm text-slate-500">ห้อง: {survey.room_name ?? '-'}</p> */}
                             <p className="text-xs text-slate-400 mt-1">
                               {survey.completed_at ? new Date(survey.completed_at).toLocaleString('th-TH', { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' }) : '-'}
                             </p>
