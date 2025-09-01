@@ -36,7 +36,7 @@ export default function MonitorDisplay() {
   
   // Detect screen orientation and set rooms per page accordingly
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
-  const itemsPerPage = useMemo(() => (isPortrait ? 8 : 2), [isPortrait]);
+  const itemsPerPage = useMemo(() => 8, [isPortrait]);
 
   // Listen for language changes from other tabs (QueueCalling)
   useEffect(() => {
@@ -288,8 +288,8 @@ export default function MonitorDisplay() {
     // Set current room announcement
     currentRoomAnnouncement.current = queue.room_id;
     
-    // Always prioritize the user's selected language for announcements
-    const announceLang = selectedLanguage;
+    // Use the queue's language if available, otherwise fall back to selected language
+    const announceLang = queue.language || selectedLanguage;
     console.log('Announcement language:', announceLang, 'Queue language:', queue.language, 'Selected language:', selectedLanguage);
     // Get the room name in the announcement language
     const room = rooms.find(r => r.room_code === queue.room_id);
@@ -611,7 +611,7 @@ export default function MonitorDisplay() {
       </header>
       
       {/* Main Content */}
-      <main className={`relative z-10 ${isPortrait ? 'flex-1 px-4' : 'p-8 max-w-7xl mx-auto w-full'}`}>
+      <main className={`relative z-10 ${isPortrait ? 'flex-1 px-4' : 'p-4 w-full'}`}>
         {isPortrait ? (
           (() => {
             const totalPages = Math.ceil(rooms.length / itemsPerPage);
@@ -674,157 +674,71 @@ export default function MonitorDisplay() {
           })()
         ) : (
           <>
-            {/* Page Indicator for Landscape */}
             {(() => {
               const sortedRooms = [...rooms].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
               const totalPages = Math.ceil(sortedRooms.length / itemsPerPage);
               const currentRooms = sortedRooms.slice(currentPage * itemsPerPage, (currentPage + 1) * itemsPerPage);
-              
               return (
-                <>
-                  {totalPages > 1 && (
-                    <div className="flex justify-center items-center mb-8">
-                      <div className="flex items-center gap-4 bg-white/80 backdrop-blur-md rounded-full px-6 py-3 border border-blue-100 shadow-sm">
-                        <span className="text-blue-700 text-sm font-medium">หน้า</span>
-                        <div className="flex gap-2">
+                <div className="w-full flex flex-col" style={contentHeight ? { height: contentHeight } : undefined}>
+                  <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-md overflow-hidden flex-1 flex flex-col">
+                    <div className="grid grid-cols-2 bg-blue-700 text-white font-semibold text-center py-3">
+                      <div className="text-lg">คิวที่กำลังเรียก</div>
+                      <div className="text-lg">ห้องตรวจ</div>
+                    </div>
+                    <div className="flex-1 min-h-0 grid grid-rows-8 px-8 py-4">
+                      {currentRooms.map((room, index) => {
+                        if (!room) return (
+                          <div key={`empty-${index}`} className="h-full flex items-center justify-center border-b border-gray-100">
+                            <div className="text-gray-300">-</div>
+                          </div>
+                        );
+                        const queue = getQueueForRoom(room.room_code);
+                        const waitingCount = getWaitingCount(room.room_code);
+                        return (
+                          <div 
+                            key={room.room_code || room.id}
+                            className="grid grid-cols-2 place-items-center hover:bg-blue-50/50 transition-colors h-full"
+                          >
+                           
+                            <div className="p-2 flex flex-col items-center justify-center h-full w-full border-b border-gray-100 text-center">
+                              {queue ? (
+                                <>
+                                  <div className="text-3xl font-bold text-blue-800 leading-tight w-full text-center">{queue.queue_number}</div>
+                                  <div className="text-xs text-gray-600 mt-1 leading-tight">
+                                    กำลังให้บริการ • {getServiceDurationText(queue.called_at)}
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="text-2xl text-gray-400 w-full text-center">-</div>
+                              )}
+                              {waitingCount > 0 && (
+                                <div className="text-xs text-gray-700 mt-1 font-medium bg-blue-50 px-2 py-0.5 rounded-full">
+                                  รออีก {waitingCount} คิว
+                                </div>
+                              )}
+                            </div>
+                            <div className="p-2 border-r border-b border-gray-100 flex flex-col justify-center items-center h-full w-full">
+                              <div className="font-semibold text-gray-800 text-3xl leading-tight text-center">{getRoomName(room, 'th')}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {totalPages > 1 && (
+                      <div className="flex justify-center items-center mt-4">
+                        <div className="flex items-center gap-2 bg-white/80 backdrop-blur-md rounded-full px-4 py-2 border border-blue-100 shadow-sm">
                           {Array.from({ length: totalPages }, (_, i) => (
                             <div
                               key={i}
-                              className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                                i === currentPage ? 'bg-blue-600 scale-125' : 'bg-blue-200'
-                              }`}
+                              className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${i === currentPage ? 'bg-blue-600 scale-125' : 'bg-blue-200'}`}
                             />
                           ))}
+                          <span className="ml-3 text-blue-700 text-sm font-medium">{currentPage + 1}/{totalPages}</span>
                         </div>
-                        <span className="text-blue-700 text-sm font-medium">{currentPage + 1}/{totalPages}</span>
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div className="grid grid-cols-2 gap-8 min-h-[600px]">
-                {currentRooms.map(room => {
-                  const queue = getQueueForRoom(room.room_code);
-                  const waitingCount = getWaitingCount(room.room_code);
-                  return (
-              <motion.div
-                key={room.room_code || room.id}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5 }}
-                className="group relative"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-white/80 to-white/60 rounded-3xl blur-sm group-hover:blur-none transition-all duration-300 shadow-lg"></div>
-                <div className="relative flex flex-col h-full bg-white/90 backdrop-blur-sm border border-blue-100 rounded-3xl p-4 md:p-6 lg:p-8 hover:bg-white transition-all duration-300 shadow-md hover:shadow-lg room-card">
-                  
-                  {/* Room Header */}
-                  <div className="flex-shrink-0">
-                    <div className="flex items-center gap-4 mb-6 pb-4 border-b border-white/20">
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-md">
-                        {room.room_code}
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="text-2xl font-semibold text-gray-800 mb-1">
-                          {getRoomName(room, 'th')}
-                        </h3>
-                        <p className="text-gray-600 text-sm">
-                          {getRoomName(room, 'en')}
-                        </p>
-                        <Badge variant="outline" className="mt-2 border-blue-200 bg-blue-50 text-blue-700">
-                          {room.department}
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Queue Status */}
-                  <div className="flex-grow flex flex-col items-center justify-center text-center">
-                    <AnimatePresence mode="wait">
-                      {queue ? (
-                        <motion.div
-                          key={queue.id || queue.queue_number}
-                          initial={{ opacity: 0, y: 30, scale: 0.8 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: -30, scale: 0.8 }}
-                          transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                          className="w-full"
-                        >
-                          {/* Status Indicator */}
-                          <div className="flex items-center justify-center gap-2 mb-4">
-                            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                            <span className="text-green-700 text-sm font-semibold">กำลังให้บริการ</span>
-                          </div>
-                          {/* Queue Number */}
-                          <div className="text-5xl font-extrabold text-blue-800 drop-shadow mb-4">
-                              {queue.queue_number}
-                          </div>
-
-                          {/* Service Duration */}
-                          <div className="flex items-center justify-center gap-2 text-blue-700 text-sm">
-                            <Clock className="w-4 h-4" />
-                            <span className="font-semibold">
-                              {getServiceDurationText(queue.called_at)}
-                            </span>
-                          </div>
-
-                          {/* Patient Type Badge */}
-                          <div className="mt-3">
-                            <Badge 
-                              className={`${queue.patient_type === 'new' ? 'bg-blue-500/20 text-blue-200' : 
-                                         queue.patient_type === 'returning' ? 'bg-green-100 text-green-800' : 
-                                         'bg-blue-100 text-blue-800'} border-0`}
-                            >
-                              {queue.patient_type === 'new' ? 'ผู้ป่วยใหม่' : 
-                               queue.patient_type === 'returning' ? 'ผู้ป่วยเก่า' : 'นัดหมาย'}
-                            </Badge>
-                          </div>
-                        </motion.div>
-                      ) : (
-                        <motion.div
-                          key={`waiting-${room.room_code || room.id}`}
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className="text-center"
-                        >
-                          <User className="w-16 h-16 mx-auto mb-4 text-blue-400 opacity-60"/>
-                          <p className="text-lg text-blue-700 font-medium">รอเรียกคิว</p>
-                          <div className="mt-4 flex items-center justify-center gap-2">
-                            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse animation-delay-200"></div>
-                            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse animation-delay-400"></div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-
-                  {/* Footer Section */}
-                  <div className='flex-shrink-0'>
-                    {/* Waiting Count for this room */}
-                    <div className="mt-4 pt-4 border-t border-blue-200 text-center">
-                      <div className="flex items-center justify-center gap-2 text-blue-700">
-                        <Users className="w-4 h-4" />
-                        <span className="text-sm font-medium">คิวที่รอ: </span>
-                        <span className="font-bold text-lg text-blue-800">{waitingCount}</span>
-                        <span className="text-sm font-medium">คิว</span>
-                      </div>
-                    </div>
-
-                    {/* Staff Info */}
-                    {room.staff_assigned && (
-                      <div className="mt-2 text-center">
-                        <p className="text-blue-600 text-sm font-medium">เจ้าหน้าที่ประจำ</p>
-                        <p className="text-gray-800 font-semibold">
-                          {room.staff_assigned ? (users.find(u => u.id === room.staff_assigned)?.full_name || 'ไม่ระบุ') : 'ไม่มีผู้ดูแล'}
-                        </p>
                       </div>
                     )}
                   </div>
                 </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-                </>
               );
             })()}
           </>

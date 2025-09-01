@@ -159,11 +159,26 @@ function QueueCallingContent() {
     setCurrentQueueNumber(queue.queue_number);
 
     try {
+      // Update queue status to serving
       await Queue.update(queue.qr_code, {
         status: 'serving',
         called_at: new Date().toISOString(),
         language: selectedLanguage
       });
+      
+      // If this queue is linked to an appointment, update its status to 'checked_in'
+      if (queue.appointment_id) {
+        try {
+          await Appointment.update(queue.appointment_id, {
+            status: 'checked_in',
+            checked_in_at: new Date().toISOString()
+          });
+          console.log(`Updated appointment ${queue.appointment_id} status to checked_in`);
+        } catch (apptError) {
+          console.error('Error updating appointment status:', apptError);
+          // Continue even if appointment update fails
+        }
+      }
       
       setLastAction({ 
         type: 'success', 
@@ -172,6 +187,7 @@ function QueueCallingContent() {
       
       setTimeout(loadData, 500); // Wait 500ms before reload to ensure Supabase update
     } catch (error) {
+      console.error('Error calling queue:', error);
       setLastAction({ type: 'error', message: 'ไม่สามารถเรียกคิวได้' });
     } finally {
       setIsCallingQueue(false);
@@ -259,11 +275,26 @@ function QueueCallingContent() {
         }
       }
 
+      // Update queue status to completed
       await Queue.update(currentQueue.qr_code, {
         status: 'completed',
         completed_at: new Date().toISOString(),
         room_history: history
       });
+      
+      // If this queue is linked to an appointment, update its status to 'completed' as well
+      if (currentQueue.appointment_id) {
+        try {
+          await Appointment.update(currentQueue.appointment_id, {
+            status: 'completed',
+            completed_at: new Date().toISOString()
+          });
+          console.log(`Updated appointment ${currentQueue.appointment_id} status to completed`);
+        } catch (apptError) {
+          console.error('Error updating appointment status:', apptError);
+          // Continue even if appointment update fails
+        }
+      }
       
       setLastAction({ 
         type: 'success', 
@@ -272,6 +303,7 @@ function QueueCallingContent() {
       
       loadData();
     } catch (error) {
+      console.error('Error completing queue:', error);
       setLastAction({ type: 'error', message: 'ไม่สามารถทำเครื่องหมายเสร็จสิ้นได้' });
     }
   };
