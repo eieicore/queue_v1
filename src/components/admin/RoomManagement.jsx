@@ -18,6 +18,7 @@ export default function RoomManagement({ rooms, users = [], onSave, onDelete }) 
     room_name: '',
     room_code: '',
     department: '',
+    doctor_assigned: '',
     staff_assigned: null,  
     average_service_time: 15,
     is_active: true,
@@ -58,6 +59,7 @@ export default function RoomManagement({ rooms, users = [], onSave, onDelete }) 
       room_name: '',
       room_code: '',
       department: '',
+      doctor_assigned: '',
       is_active: true,
       staff_assigned: null,
       average_service_time: 15,
@@ -246,6 +248,15 @@ export default function RoomManagement({ rooms, users = [], onSave, onDelete }) 
                             placeholder="เช่น อายุรกรรม"
                           />
                         </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="doctor_assigned">แพทย์ประจำห้อง</Label>
+                          <Input
+                            id="doctor_assigned"
+                            value={formData.doctor_assigned || ''}
+                            onChange={(e) => setFormData({ ...formData, doctor_assigned: e.target.value })}
+                            placeholder="เช่น นพ. สมชาย ใจดี"
+                          />
+                        </div>
                         <div className="grid gap-2">
                           <Label htmlFor="staff_assigned">เจ้าหน้าที่ประจำห้อง</Label>
                           <Select
@@ -388,13 +399,16 @@ export default function RoomManagement({ rooms, users = [], onSave, onDelete }) 
                                       {room.room_code}
                                     </div>
                                     <div>
-                                      <h3 className="font-medium text-slate-900">{room.room_name}</h3>
-                                      <p className="text-sm text-slate-500">{room.department}</p>
-                                      {room.staff_assigned && (
-                                        <p className="text-sm text-slate-600">
-                                          เจ้าหน้าที่: {users.find(u => u.id === room.staff_assigned)?.full_name || room.staff_assigned}
-                                        </p>
-                                      )}
+                                    <h3 className="font-medium text-slate-900">{room.room_name}</h3>
+                                    <p className="text-sm text-slate-500">{room.department}</p>
+                                    {room.doctor_assigned && (
+                                      <p className="text-sm text-slate-600">แพทย์: {room.doctor_assigned}</p>
+                                    )}
+                                    {room.staff_assigned && (
+                                      <p className="text-sm text-slate-600">
+                                        เจ้าหน้าที่: {users.find(u => u.id === room.staff_assigned)?.full_name || room.staff_assigned}
+                                      </p>
+                                    )}
                                       {room.room_names && (room.room_names.th || room.room_names.en || room.room_names.zh) && (
                                         <div className="text-xs text-slate-500 mt-1">
                                           <Languages className="w-3 h-3 inline mr-1" />

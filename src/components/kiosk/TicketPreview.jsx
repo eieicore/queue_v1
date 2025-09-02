@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Clock, Calendar } from 'lucide-react';
+import { MapPin, Clock, Calendar, User } from 'lucide-react';
 import '@/styles/print.css';
 
 const patientTypeLabels = {
@@ -24,6 +24,7 @@ export default function TicketPreview({ ticket, queueSettings }) {
   const room = ticket.room_history?.[0] || {};
   const roomName = room.room_name || ticket.room_name || '-';
   const department = ticket.department || '-';
+  const doctorName = ticket.doctor_name || room.doctor_assigned || '-';
 
   // วันที่และเวลาเข้าห้อง (ใช้ room.entered_at)
   let dateText = '-';
@@ -94,6 +95,13 @@ export default function TicketPreview({ ticket, queueSettings }) {
             <div>
               <p className="font-medium text-slate-900">{roomName}</p>
               <p className="text-sm text-slate-500">{department}</p>
+            </div>
+          </div>
+          <div className="flex justify-center space-x-4 items-center text-sm print:text-base">
+            <User className="w-5 h-5 text-slate-400" />
+            <div>
+              <p className="font-medium text-slate-900">แพทย์ผู้ตรวจ</p>
+              <p className="text-sm text-slate-500">{doctorName}</p>
             </div>
           </div>
           <div className="flex justify-center space-x-4 items-center text-sm print:text-base">

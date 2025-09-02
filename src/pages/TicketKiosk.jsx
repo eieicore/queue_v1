@@ -303,7 +303,7 @@ export default function TicketKiosk() {
           p_patient_id: finalPatientType === 'new' ? null : patientId,
           p_patient_name: patientName || null,
           p_priority: finalPatientType === 'appointment' ? 1 : 0,
-          p_doctor_name: appointmentData ? appointmentData.doctor_name : null,
+          p_doctor_name: (appointmentData && appointmentData.doctor_name) ? appointmentData.doctor_name : (room.doctor_assigned || null),
           p_department: room.department || null,
           p_appointment_time: appointmentData ? appointmentData.appointment_time : null,
           p_appointment_type: appointmentData ? appointmentData.appointment_type : null,

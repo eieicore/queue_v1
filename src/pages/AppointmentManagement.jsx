@@ -46,8 +46,10 @@ function AppointmentManagementContent() {
     department: '',
     appointment_type: 'follow_up',
     notes: '',
-    phone: ''
+    phone: '',
+    status: 'scheduled'
   });
+  const [patientSearched, setPatientSearched] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -79,12 +81,22 @@ function AppointmentManagementContent() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Check if patient is searched and found
+    if (!patientSearched || !formData.patient_name) {
+      setMessage('กรุณาค้นหาและยืนยันข้อมูลผู้ป่วยก่อนบันทึกการนัดหมาย');
+      if (!formData.patient_id) {
+        document.getElementById('patient-search')?.focus();
+      }
+      setTimeout(() => setMessage(''), 5000);
+      return;
+    }
+
     // Validate required fields
     const requiredFields = [
       { field: 'patient_name', label: 'ชื่อ-นามสกุล' },
       { field: 'appointment_date', label: 'วันที่นัด' },
       { field: 'appointment_time', label: 'เวลานัด' },
-      { field: 'room_id', label: 'ห้อง' },
+      { field: 'room_id', label: 'ห้องตรวจ' },
       { field: 'appointment_type', label: 'ประเภทการนัด' }
     ];
 
@@ -139,6 +151,7 @@ function AppointmentManagementContent() {
       setTimeout(() => setMessage(''), 5000);
     }
   };
+
   const handleEdit = (appointment) => {
     setEditingAppointment(appointment);
     setFormData(appointment);
@@ -211,31 +224,53 @@ function AppointmentManagementContent() {
       department: '',
       appointment_type: 'follow_up',
       notes: '',
-      phone: ''
+      phone: '',
+      status: 'scheduled'
     });
+    setPatientSearched(false);
+    setSearchError('');
+    setIsSearching(false);
   };
 
-  const searchPatient = async (searchValue) => {
-    if (!searchValue.trim()) return;
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState('');
 
+  const searchPatient = async (query) => {
+    if (!query) {
+      setPatientSearched(false);
+      setSearchError('');
+      return;
+    }
+    
+    setIsSearching(true);
+    setSearchError('');
+    
     try {
-      const patient = patients.find(p =>
-        p.id_card === searchValue || p.hn_number === searchValue
-      );
-
+      const patient = await Patient.findByHNOrIDCard(query);
       if (patient) {
         setFormData(prev => ({
           ...prev,
           patient_id: patient.id_card || patient.hn_number,
-          patient_name: `${patient.first_name} ${patient.last_name}`,
+          patient_name: `${patient.first_name} ${patient.last_name}`.trim(),
           phone: patient.phone || ''
         }));
+        setPatientSearched(true);
       } else {
-        setMessage('ไม่พบข้อมูลผู้ป่วย');
-        setTimeout(() => setMessage(''), 3000);
+        setFormData(prev => ({
+          ...prev,
+          patient_id: query, // Keep the search query for reference
+          patient_name: '',
+          phone: ''
+        }));
+        setPatientSearched(false);
+        setSearchError('ไม่พบข้อมูลผู้ป่วย กรุณาตรวจสอบเลขบัตรประชาชนหรือ HN อีกครั้ง');
       }
     } catch (error) {
       console.error('Error searching patient:', error);
+      setPatientSearched(false);
+      setSearchError('เกิดข้อผิดพลาดในการค้นหา กรุณาลองใหม่อีกครั้ง');
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -316,16 +351,56 @@ function AppointmentManagementContent() {
                       <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <Label htmlFor="patient-search">ค้นหาผู้ป่วย (ID Card/HN)</Label>
-                            <div className="flex gap-2">
-                              <Input
-                                id="patient-search"
-                                placeholder="กรอกเลขบัตรประชาชนหรือ HN"
-                                onBlur={(e) => searchPatient(e.target.value)}
-                              />
-                              <Button type="button" variant="outline" onClick={() => searchPatient(document.getElementById('patient-search').value)}>
-                                <Search className="w-4 h-4" />
-                              </Button>
+                            <Label htmlFor="patient-search">ค้นหาผู้ป่วย (ID Card/HN) <span className="text-red-500">*</span></Label>
+                            <div className="space-y-1">
+                              <div className="relative flex gap-2">
+                                <Input
+                                  id="patient-search"
+                                  placeholder="กรอกเลขบัตรประชาชนหรือ HN *"
+                                  value={formData.patient_id || ''}
+                                  onChange={(e) => {
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      patient_id: e.target.value,
+                                      patient_name: e.target.value === '' ? '' : prev.patient_name
+                                    }));
+                                    if (e.target.value === '') {
+                                      setPatientSearched(false);
+                                      setSearchError('');
+                                    }
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      searchPatient(e.target.value);
+                                    }
+                                  }}
+                                  onBlur={(e) => searchPatient(e.target.value)}
+                                  required
+                                  className={`pr-10 ${searchError ? 'border-red-500' : ''} ${patientSearched ? 'bg-green-50 border-green-500' : ''}`}
+                                  disabled={isSearching}
+                                />
+                                <Button 
+                                  type="button" 
+                                  variant={patientSearched ? 'outline' : 'default'}
+                                  className={`absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 ${patientSearched ? 'bg-green-100 hover:bg-green-200 text-green-700' : ''}`}
+                                  onClick={() => searchPatient(formData.patient_id)}
+                                  disabled={isSearching || !formData.patient_id}
+                                >
+                                  {isSearching ? (
+                                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                                  ) : patientSearched ? (
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <path d="M20 6 9 17l-5-5" />
+                                    </svg>
+                                  ) : (
+                                    <Search className="w-4 h-4" />
+                                  )}
+                                </Button>
+                              </div>
+                              {searchError && (
+                                <p className="text-sm text-red-500">{searchError}</p>
+                              )}
                             </div>
                           </div>
 
@@ -336,8 +411,9 @@ function AppointmentManagementContent() {
                             <Input
                               id="patient-name"
                               value={formData.patient_name}
-                              onChange={(e) => setFormData({ ...formData, patient_name: e.target.value })}
-                              placeholder="ชื่อ-นามสกุล"
+                              readOnly
+                              className="bg-gray-100"
+                              placeholder="ชื่อ-นามสกุล (จะถูกเติมให้อัตโนมัติหลังค้นหา)"
                               required
                             />
                           </div>
@@ -403,12 +479,13 @@ function AppointmentManagementContent() {
                           </div>
 
                           <div className="space-y-2">
-                            <Label htmlFor="doctor">ชื่อแพทย์</Label>
+                            <Label htmlFor="doctor">ชื่อแพทย์ <span className="text-red-500">*</span></Label>
                             <Input
                               id="doctor"
                               value={formData.doctor_name}
                               onChange={(e) => setFormData({ ...formData, doctor_name: e.target.value })}
                               placeholder="ชื่อแพทย์"
+                              required
                             />
                           </div>
                         </div>

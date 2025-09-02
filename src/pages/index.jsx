@@ -11,6 +11,7 @@ import TicketKiosk from './TicketKiosk';
 import Reports from './Reports';
 import QueueStatus from './QueueStatus';
 import AppointmentManagement from './AppointmentManagement';
+import StaffTicket from './StaffTicket';
 import LoginGuard from '../components/auth/LoginGuard';
 
 export const LanguageContext = createContext({
@@ -33,6 +34,7 @@ function ProtectedRoutes() {
           <Route path="monitordisplay" element={<Navigate to="/monitordisplay" replace state={{ from: 'protected' }} />} />
           <Route path="reports" element={<Reports />} />
           <Route path="appointmentmanagement" element={<AppointmentManagement />} />
+          <Route path="staffticket" element={<StaffTicket />} />
         </Routes>
       </Layout>
     </LoginGuard>

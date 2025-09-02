@@ -287,6 +287,44 @@ export const Patient = {
       }
     });
     return await res.json();
+  },
+  findByHNOrIDCard: async (query) => {
+    if (!query) return null;
+    
+    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
+    
+    try {
+      // First try to find by ID card
+      const idCardRes = await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/patients?id_card=eq.${encodeURIComponent(query)}`, {
+        headers: {
+          'apikey': API_KEY,
+          'Authorization': `Bearer ${API_KEY}`
+        }
+      });
+      
+      const idCardPatients = await idCardRes.json();
+      if (idCardPatients && idCardPatients.length > 0) {
+        return idCardPatients[0];
+      }
+      
+      // If not found by ID card, try by HN number
+      const hnRes = await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/patients?hn_number=eq.${encodeURIComponent(query)}`, {
+        headers: {
+          'apikey': API_KEY,
+          'Authorization': `Bearer ${API_KEY}`
+        }
+      });
+      
+      const hnPatients = await hnRes.json();
+      if (hnPatients && hnPatients.length > 0) {
+        return hnPatients[0];
+      }
+      
+      return null; // Patient not found
+    } catch (error) {
+      console.error('Error finding patient by HN or ID card:', error);
+      throw error;
+    }
   }
 };
 

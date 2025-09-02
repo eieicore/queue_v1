@@ -41,6 +41,7 @@ const navigationItems = [
   { title: "Monitor Display",     url: createPageUrl("MonitorDisplay"),     icon: Monitor,         requiredLevel: "viewer" },
   { title: "Ticket Kiosk",        url: createPageUrl("TicketKiosk"),        icon: Printer,         requiredLevel: "viewer" },
   { title: "Reports",             url: createPageUrl("Reports"),             icon: BarChart3,       requiredLevel: "staff"  },
+  { title: "Staff Ticket",        url: createPageUrl("StaffTicket"),        icon: Printer,         requiredLevel: "staff"  },
 ];
 
 // Check if screen is in portrait mode

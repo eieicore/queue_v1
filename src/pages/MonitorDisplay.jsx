@@ -36,7 +36,7 @@ export default function MonitorDisplay() {
   
   // Detect screen orientation and set rooms per page accordingly
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
-  const itemsPerPage = useMemo(() => 8, [isPortrait]);
+  const itemsPerPage = useMemo(() => 6, [isPortrait]);
 
   // Listen for language changes from other tabs (QueueCalling)
   useEffect(() => {
@@ -611,16 +611,17 @@ export default function MonitorDisplay() {
       </header>
       
       {/* Main Content */}
-      <main className={`relative z-10 ${isPortrait ? 'flex-1 px-4' : 'p-4 w-full'}`}>
+      <main className={`relative z-10 ${isPortrait ? 'flex-1 px-4' : ' w-full'}`}>
         {isPortrait ? (
           (() => {
             const totalPages = Math.ceil(rooms.length / itemsPerPage);
             return (
               <div className="w-full flex flex-col" style={contentHeight ? { height: contentHeight } : undefined}>
                 <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-md overflow-hidden flex-1 flex flex-col">
-                  <div className="grid grid-cols-2 bg-blue-700 text-white font-semibold text-center py-3">
-                    <div className="text-lg">คิวที่กำลังเรียก</div>
-                    <div className="text-lg">ห้องตรวจ</div>
+                  <div className="grid grid-cols-3 bg-blue-700 text-white font-semibold text-center py-3">
+                    <div className="text-3xl">คิวที่กำลังเรียก</div>
+                    <div className="text-3xl">ห้องตรวจ</div>
+                    <div className="text-3xl">แพทย์ผู้ตรวจ</div>
                   </div>
                   <div className="flex-1 min-h-0 grid grid-rows-8 px-8 py-4">
                     {currentRooms.map((room, index) => {
@@ -634,7 +635,7 @@ export default function MonitorDisplay() {
                       return (
                         <div 
                           key={room.room_code || room.id}
-                          className="grid grid-cols-2 hover:bg-blue-50/50 transition-colors h-full"
+                          className="grid grid-cols-3 hover:bg-blue-50/50 transition-colors h-full"
                         >
                           
                           <div className="p-2 flex flex-col items-center justify-center h-full w-full border-b border-gray-100">
@@ -646,7 +647,7 @@ export default function MonitorDisplay() {
                                 </div>
                               </>
                             ) : (
-                              <div className="text-2xl text-gray-400">-</div>
+                              <div className="text-3xl text-gray-400">-</div>
                             )}
                             {waitingCount > 0 && (
                               <div className="text-xs text-gray-700 mt-1 font-medium bg-blue-50 px-2 py-0.5 rounded-full">
@@ -655,14 +656,17 @@ export default function MonitorDisplay() {
                             )}
                           </div>
                           <div className="p-2 border-r border-b border-gray-100 flex flex-col justify-center h-full w-full text-center">
-                            <div className="font-semibold text-gray-800 text-3xl leading-tight">{getRoomName(room, 'th')}</div>
-                            {/* <div className="text-gray-600 text-sm leading-tight">{getRoomName(room, 'en')}</div>
-                            <div className="mt-1">
-                              <Badge variant="outline" className="text-xs border-blue-200 bg-blue-50 text-blue-700 px-2 py-0.5">
-                                {room.department}
-                              </Badge>
-                            </div> */}
+                            <div className="font-extrabold text-gray-800 text-2xl leading-tight">{getRoomName(room, 'th')}</div>
+                            <div className="text-gray-600 text-lg leading-tight">{getRoomName(room, 'en')}</div>
                           </div>
+                          <div className="p-2 border-b border-gray-100 flex items-center justify-center h-full w-full text-center">
+                            {room.doctor_assigned ? (
+                              <span className="text-3xl font-semibold text-blue-900">{room.doctor_assigned}</span>
+                            ) : (
+                              <span className="text-3xl text-gray-400">-</span>
+                            )}
+                          </div>
+                          
                         </div>
                       );
                     })}
@@ -682,11 +686,12 @@ export default function MonitorDisplay() {
               return (
                 <div className="w-full flex flex-col" style={contentHeight ? { height: contentHeight } : undefined}>
                   <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-md overflow-hidden flex-1 flex flex-col">
-                    <div className="grid grid-cols-2 bg-blue-700 text-white font-semibold text-center py-3">
-                      <div className="text-lg">คิวที่กำลังเรียก</div>
-                      <div className="text-lg">ห้องตรวจ</div>
+                    <div className="grid grid-cols-3 bg-blue-700 text-white font-semibold text-center py-3">
+                      <div className="text-6xl">คิวที่กำลังเรียก</div>
+                      <div className="text-6xl">ห้องตรวจ</div>
+                      <div className="text-6xl">แพทย์ผู้ตรวจ</div>
                     </div>
-                    <div className="flex-1 min-h-0 grid grid-rows-8 px-8 py-4">
+                    <div className="flex-1 min-h-0 grid grid-rows-6 px-8 py-4">
                       {currentRooms.map((room, index) => {
                         if (!room) return (
                           <div key={`empty-${index}`} className="h-full flex items-center justify-center border-b border-gray-100">
@@ -695,22 +700,23 @@ export default function MonitorDisplay() {
                         );
                         const queue = getQueueForRoom(room.room_code);
                         const waitingCount = getWaitingCount(room.room_code);
+                        console.log("room",room);
                         return (
                           <div 
                             key={room.room_code || room.id}
-                            className="grid grid-cols-2 place-items-center hover:bg-blue-50/50 transition-colors h-full"
+                            className="grid grid-cols-3 place-items-center hover:bg-blue-50/50 transition-colors h-full"
                           >
                            
                             <div className="p-2 flex flex-col items-center justify-center h-full w-full border-b border-gray-100 text-center">
                               {queue ? (
                                 <>
-                                  <div className="text-3xl font-bold text-blue-800 leading-tight w-full text-center">{queue.queue_number}</div>
+                                  <div className="text-5xl font-bold text-blue-800 leading-tight w-full text-center">{queue.queue_number}</div>
                                   <div className="text-xs text-gray-600 mt-1 leading-tight">
                                     กำลังให้บริการ • {getServiceDurationText(queue.called_at)}
                                   </div>
                                 </>
                               ) : (
-                                <div className="text-2xl text-gray-400 w-full text-center">-</div>
+                                <div className="text-3xl text-gray-400 w-full text-center">-</div>
                               )}
                               {waitingCount > 0 && (
                                 <div className="text-xs text-gray-700 mt-1 font-medium bg-blue-50 px-2 py-0.5 rounded-full">
@@ -719,7 +725,15 @@ export default function MonitorDisplay() {
                               )}
                             </div>
                             <div className="p-2 border-r border-b border-gray-100 flex flex-col justify-center items-center h-full w-full">
-                              <div className="font-semibold text-gray-800 text-3xl leading-tight text-center">{getRoomName(room, 'th')}</div>
+                              <div className="font-extrabold text-gray-800 text-5xl leading-tight text-center">{getRoomName(room, 'th')}</div>
+                              <div className="text-gray-600 text-lg leading-tight">{getRoomName(room, 'en')}</div>
+                            </div>
+                            <div className="p-2 border-b border-gray-100 flex items-center justify-center h-full w-full">
+                              {room.doctor_assigned ? (
+                                <span className="text-5xl font-semibold text-blue-900 text-center">{room.doctor_assigned}</span>
+                              ) : (
+                                <span className="text-3xl text-gray-400 text-center">-</span>
+                              )}
                             </div>
                           </div>
                         );
