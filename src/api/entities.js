@@ -1,4 +1,5 @@
 // Local mock entity implementations for offline/local usage
+import { API_CONFIG, API_HEADERS } from '../config/constants.js';
 
 // Helper for localStorage persistence
 function getLocal(key, fallback = []) {
@@ -16,23 +17,17 @@ function setLocal(key, value) {
 // --- Queue ---
 export const Queue = {
   list: async () => {
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
-    const res = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/queue', {
-      headers: {
-        'apikey': API_KEY,
-        'Authorization': `Bearer ${API_KEY}`
-      }
+    const res = await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/queue`, {
+      headers: API_HEADERS
     });
     return await res.json();
   },
   create: async (data) => {
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
-    const res = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/queue', {
+    const res = await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/queue`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': API_KEY,
-        'Authorization': `Bearer ${API_KEY}`,
+        ...API_HEADERS,
         'Prefer': 'return=representation'
       },
       body: JSON.stringify(data)
@@ -40,13 +35,11 @@ export const Queue = {
     return await res.json();
   },
   update: async (qr_code, data) => {
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
-    const res = await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/queue?qr_code=eq.${qr_code}`, {
+    const res = await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/queue?qr_code=eq.${qr_code}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': API_KEY,
-        'Authorization': `Bearer ${API_KEY}`,
+        ...API_HEADERS,
         'Prefer': 'return=representation'
       },
       body: JSON.stringify(data)
@@ -62,15 +55,11 @@ export const Queue = {
     return true;
   },
   filter: async (params) => {
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
     const query = Object.entries(params)
       .map(([key, value]) => `${encodeURIComponent(key)}=eq.${encodeURIComponent(value)}`)
       .join('&');
-    const res = await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/queue?${query}`, {
-      headers: {
-        'apikey': API_KEY,
-        'Authorization': `Bearer ${API_KEY}`
-      }
+    const res = await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/queue?${query}`, {
+      headers: API_HEADERS
     });
     return await res.json();
   }
@@ -79,23 +68,17 @@ export const Queue = {
 // --- Room ---
 export const Room = {
   list: async () => {
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
-    const res = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/rooms', {
-      headers: {
-        'apikey': API_KEY,
-        'Authorization': `Bearer ${API_KEY}`
-      }
+    const res = await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/rooms`, {
+      headers: API_HEADERS
     });
     return await res.json();
   },
   create: async (data) => {
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
-    const res = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/rooms', {
+    const res = await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/rooms`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': API_KEY,
-        'Authorization': `Bearer ${API_KEY}`,
+        ...API_HEADERS,
         'Prefer': 'return=representation'
       },
       body: JSON.stringify(data)
@@ -103,13 +86,11 @@ export const Room = {
     return await res.json();
   },
   update: async (room_code, data) => {
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
-    const res = await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/rooms?room_code=eq.${room_code}`, {
+    const res = await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/rooms?room_code=eq.${room_code}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': API_KEY,
-        'Authorization': `Bearer ${API_KEY}`,
+        ...API_HEADERS,
         'Prefer': 'return=representation'
       },
       body: JSON.stringify(data)
@@ -119,13 +100,9 @@ export const Room = {
     return Array.isArray(result) ? result[0] : result;
   },
   delete: async (room_code) => {
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
-    const res = await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/rooms?room_code=eq.${room_code}`, {
+    const res = await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/rooms?room_code=eq.${room_code}`, {
       method: 'DELETE',
-      headers: {
-        'apikey': API_KEY,
-        'Authorization': `Bearer ${API_KEY}`
-      }
+      headers: API_HEADERS
     });
     return res.ok;
   }
@@ -134,13 +111,9 @@ export const Room = {
 // --- QueueSettings ---
 export const QueueSettings = {
   list: async () => {
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
     try {
-      const res = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/queue_settings?select=*', {
-        headers: {
-          'apikey': API_KEY,
-          'Authorization': `Bearer ${API_KEY}`
-        }
+      const res = await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/queue_settings?select=*`, {
+        headers: API_HEADERS
       });
       const data = await res.json();
       if (data.length > 0) {
@@ -177,13 +150,11 @@ export const QueueSettings = {
     }
   },
   create: async (data) => {
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
-    const res = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/queue_settings', {
+    const res = await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/queue_settings`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': API_KEY,
-        'Authorization': `Bearer ${API_KEY}`,
+        ...API_HEADERS,
         'Prefer': 'return=representation'
       },
       body: JSON.stringify(data)
@@ -191,27 +162,21 @@ export const QueueSettings = {
     return await res.json();
   },
   update: async (id, data) => {
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
-    
     try {
       // First, check if the record exists
-      const checkRes = await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/queue_settings?id=eq.${id}`, {
-        headers: {
-          'apikey': API_KEY,
-          'Authorization': `Bearer ${API_KEY}`
-        }
+      const checkRes = await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/queue_settings?id=eq.${id}`, {
+        headers: API_HEADERS
       });
       
       const existingRecords = await checkRes.json();
       
       if (existingRecords && existingRecords.length > 0) {
         // Update existing record
-        const res = await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/queue_settings?id=eq.${id}`, {
+        const res = await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/queue_settings?id=eq.${id}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': API_KEY,
-            'Authorization': `Bearer ${API_KEY}`,
+            ...API_HEADERS,
             'Prefer': 'return=representation'
           },
           body: JSON.stringify(data)
@@ -220,12 +185,11 @@ export const QueueSettings = {
         return result;
       } else {
         // If no record exists with this ID, create a new one
-        const res = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/queue_settings', {
+        const res = await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/queue_settings`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'apikey': API_KEY,
-            'Authorization': `Bearer ${API_KEY}`,
+            ...API_HEADERS,
             'Prefer': 'return=representation'
           },
           body: JSON.stringify({ ...data, id })

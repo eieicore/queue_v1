@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useContext, useRef, useCallback, useMemo } from 'react';
-import { Queue, Room } from '@/api/entities';
+import { Queue, Room, User as UserEntity } from '@/api/entities';
 import { Badge } from '@/components/ui/badge';
 import { Monitor, Activity, User, Clock, Volume2, Users } from 'lucide-react'; // Added Users icon
 import { AnimatePresence, motion } from 'framer-motion';
@@ -36,7 +36,7 @@ export default function MonitorDisplay() {
   
   // Detect screen orientation and set rooms per page accordingly
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
-  const itemsPerPage = useMemo(() => 6, [isPortrait]);
+  const itemsPerPage = useMemo(() => 4, [isPortrait]);
 
   // Listen for language changes from other tabs (QueueCalling)
   useEffect(() => {
@@ -502,33 +502,15 @@ export default function MonitorDisplay() {
   const loadData = async () => {
     try {
       // ดึงข้อมูลผู้ใช้
-      const usersRes = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/user?select=*', {
-        headers: {
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY',
-          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY'
-        }
-      });
-      const usersData = await usersRes.json();
+      const usersData = await UserEntity.list();
       setUsers(usersData || []);
 
       // ดึงข้อมูลห้อง
-      const roomRes = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/rooms', {
-        headers: {
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY',
-          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY'
-        }
-      });
-      const roomsData = await roomRes.json();
+      const roomsData = await Room.list();
       setRooms(roomsData.filter(r => r.is_active));
 
       // ดึงข้อมูลคิว
-      const queueRes = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/queue', {
-        headers: {
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY',
-          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY'
-        }
-      });
-      const queuesData = await queueRes.json();
+      const queuesData = await Queue.list();
       setAllQueues(queuesData);
       setServingQueues(queuesData.filter(q => q.status === 'serving' || q.status === 'called'));
     } catch (error) {
@@ -537,7 +519,7 @@ export default function MonitorDisplay() {
   };
 
   const getRoomName = (room, language = 'th') => {
-    return room?.room_names?.[selectedLanguage] || room?.room_name || 'Unknown Room';
+    return room?.room_names?.[language] || room?.room_name || 'Unknown Room';
   };
 
   const getQueueForRoom = (roomCode) => {
@@ -691,7 +673,7 @@ export default function MonitorDisplay() {
                       <div className="text-6xl">ห้องตรวจ</div>
                       <div className="text-6xl">แพทย์ผู้ตรวจ</div>
                     </div>
-                    <div className="flex-1 min-h-0 grid grid-rows-6 px-8 py-4">
+                    <div className="flex-1 min-h-0 grid grid-rows-4 px-8 py-4">
                       {currentRooms.map((room, index) => {
                         if (!room) return (
                           <div key={`empty-${index}`} className="h-full flex items-center justify-center border-b border-gray-100">
@@ -700,7 +682,7 @@ export default function MonitorDisplay() {
                         );
                         const queue = getQueueForRoom(room.room_code);
                         const waitingCount = getWaitingCount(room.room_code);
-                        console.log("room",room);
+                        // console.log("room",room);
                         return (
                           <div 
                             key={room.room_code || room.id}
@@ -710,8 +692,8 @@ export default function MonitorDisplay() {
                             <div className="p-2 flex flex-col items-center justify-center h-full w-full border-b border-gray-100 text-center">
                               {queue ? (
                                 <>
-                                  <div className="text-5xl font-bold text-blue-800 leading-tight w-full text-center">{queue.queue_number}</div>
-                                  <div className="text-xs text-gray-600 mt-1 leading-tight">
+                                  <div className="text-6xl font-bold text-blue-800 leading-tight w-full text-center">{queue.queue_number}</div>
+                                  <div className="text-lg text-gray-600 mt-1 leading-tight">
                                     กำลังให้บริการ • {getServiceDurationText(queue.called_at)}
                                   </div>
                                 </>
@@ -719,13 +701,13 @@ export default function MonitorDisplay() {
                                 <div className="text-3xl text-gray-400 w-full text-center">-</div>
                               )}
                               {waitingCount > 0 && (
-                                <div className="text-xs text-gray-700 mt-1 font-medium bg-blue-50 px-2 py-0.5 rounded-full">
+                                <div className="text-xl text-gray-700 mt-1 font-medium bg-blue-50 px-2 py-0.5 rounded-full">
                                   รออีก {waitingCount} คิว
                                 </div>
                               )}
                             </div>
-                            <div className="p-2 border-r border-b border-gray-100 flex flex-col justify-center items-center h-full w-full">
-                              <div className="font-extrabold text-gray-800 text-5xl leading-tight text-center">{getRoomName(room, 'th')}</div>
+                            <div className="p-2 border-l border-r border-b border-gray-100 flex flex-col justify-center items-center h-full w-full">
+                              <div className="font-bold text-gray-800 text-6xl leading-tight text-center">{getRoomName(room, 'th')}</div>
                               <div className="text-gray-600 text-lg leading-tight">{getRoomName(room, 'en')}</div>
                             </div>
                             <div className="p-2 border-b border-gray-100 flex items-center justify-center h-full w-full">

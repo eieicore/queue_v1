@@ -20,6 +20,7 @@ export default function TicketPreview({ ticket, queueSettings }) {
   // ป้องกัน null
   if (!ticket) return <div className="text-center text-red-500">ไม่พบข้อมูลคิว</div>;
 
+  console.log('ticket',ticket);
   // ข้อมูลห้องและวันที่
   const room = ticket.room_history?.[0] || {};
   const roomName = room.room_name || ticket.room_name || '-';
@@ -94,7 +95,7 @@ export default function TicketPreview({ ticket, queueSettings }) {
             <MapPin className="w-5 h-5 text-slate-400" />
             <div>
               <p className="font-medium text-slate-900">{roomName}</p>
-              <p className="text-sm text-slate-500">{department}</p>
+              <p className="text-sm text-slate-500">แผนก : {department}</p>
             </div>
           </div>
           <div className="flex justify-center space-x-4 items-center text-sm print:text-base">

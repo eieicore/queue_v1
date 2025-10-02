@@ -6,12 +6,7 @@ import RoomActivity from '@/components/dashboard/RoomActivity';
 import RecentActivity from '@/components/dashboard/RecentActivity';
 import SatisfactionOverview from '@/components/dashboard/SatisfactionOverview';
 import { User, Clock } from 'lucide-react';
-
-const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
-const HEADERS = {
-  apikey: API_KEY,
-  Authorization: `Bearer ${API_KEY}`,
-};
+import { Queue, Room, Feedback } from '@/api/entities';
 
 export default function Dashboard() {
   const [queues, setQueues] = useState([]);
@@ -21,9 +16,9 @@ export default function Dashboard() {
 
   useEffect(() => {
     Promise.all([
-      fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/queue', { headers: HEADERS }).then(res => res.json()),
-      fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/rooms', { headers: HEADERS }).then(res => res.json()),
-      fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/feedbacks', { headers: HEADERS }).then(res => res.json()),
+      Queue.list(),
+      Room.list(),
+      Feedback.list()
     ]).then(([queuesData, roomsData, feedbacksData]) => {
       setQueues(queuesData);
       setRooms(roomsData);

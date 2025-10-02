@@ -20,11 +20,13 @@ import {
   Phone,
   Mail,
   Save,
-  X
+  X,
+  Download
 } from 'lucide-react';
 
 import LoginGuard from '../components/auth/LoginGuard';
 import PermissionGuard from '../components/auth/PermissionGuard';
+import * as XLSX from 'xlsx';
 
 function AppointmentManagementContent() {
   const [appointments, setAppointments] = useState([]);
@@ -241,10 +243,10 @@ function AppointmentManagementContent() {
       setSearchError('');
       return;
     }
-    
+
     setIsSearching(true);
     setSearchError('');
-    
+
     try {
       const patient = await Patient.findByHNOrIDCard(query);
       if (patient) {
@@ -302,6 +304,36 @@ function AppointmentManagementContent() {
       default: return status;
     }
   };
+  const exportToExcel = () => {
+    // Prepare data for export
+    const dataToExport = appointments.map(appointment => {
+      const patient = patients.find(p => p.id === appointment.patient_id) || {};
+      const room = rooms.find(r => r.id === appointment.room_id) || {};
+
+      return {
+        'วันที่นัด': appointment.appointment_date,
+        'เวลานัด': appointment.appointment_time,
+        'เลขบัตรประชาชน/HN': patient.id_card_number || patient.hn_number || appointment.patient_id,
+        'ชื่อ-นามสกุล': patient.name || appointment.patient_name,
+        'เบอร์โทร': patient.phone || appointment.phone || '-',
+        'ห้องตรวจ': room.room_name || room.name || appointment.room_id,
+        'แพทย์': appointment.doctor_name || '-',
+        'แผนก': appointment.department || '-',
+        'ประเภทการนัด': appointment.appointment_type === 'follow_up' ? 'นัดติดตาม' : 'นัดใหม่',
+        'สถานะ': getStatusLabel(appointment.status),
+        'หมายเหตุ': appointment.notes || '-'
+      };
+    });
+
+    // Create worksheet and workbook
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'รายการนัดหมาย');
+
+    // Generate Excel file
+    const fileName = `รายการนัดหมาย_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  };
 
   if (isLoading) {
     return (
@@ -328,11 +360,24 @@ function AppointmentManagementContent() {
         <Card className="bg-white/80 backdrop-blur-sm border-slate-200 shadow-lg">
           <CardHeader className="border-b border-slate-100">
             <div className="flex justify-between items-center">
+              
               <CardTitle className="flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-blue-600" />
                 การนัดหมาย
               </CardTitle>
+              <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="bg-green-600 hover:bg-green-700 text-white ml-2"
+                onClick={exportToExcel}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                ส่งออก Excel
+              </Button>
               <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+              
                 <DialogTrigger asChild>
                   <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => { resetForm(); setEditingAppointment(null); }}>
                     <Plus className="w-4 h-4 mr-2" />
@@ -380,8 +425,8 @@ function AppointmentManagementContent() {
                                   className={`pr-10 ${searchError ? 'border-red-500' : ''} ${patientSearched ? 'bg-green-50 border-green-500' : ''}`}
                                   disabled={isSearching}
                                 />
-                                <Button 
-                                  type="button" 
+                                <Button
+                                  type="button"
                                   variant={patientSearched ? 'outline' : 'default'}
                                   className={`absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 ${patientSearched ? 'bg-green-100 hover:bg-green-200 text-green-700' : ''}`}
                                   onClick={() => searchPatient(formData.patient_id)}
@@ -561,6 +606,7 @@ function AppointmentManagementContent() {
                   </Card>
                 </DialogContent>
               </Dialog>
+            </div>
             </div>
           </CardHeader>
 
