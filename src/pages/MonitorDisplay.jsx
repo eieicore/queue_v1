@@ -15,7 +15,7 @@ const LANGUAGE_VOICES = {
 
 // Function to build audio file path from Supabase Storage
 const buildAudioPath = (roomId, language, patientType, queueNumber) => {
-  const baseUrl = 'https://supabase3.rg.in.th/storage/v1/object/public/voice-queue';
+  const baseUrl = `${API_CONFIG.SUPABASE_URL}/storage/v1/object/public/voice-queue`;
   return `${baseUrl}/${roomId}/${language}/${patientType}/${queueNumber}.mp3`;
 };
 
@@ -53,7 +53,197 @@ const testAudioFileExists = async (audioPath) => {
     return false;
   }
 };
+// Function to check if server supports range requests
+const checkRangeSupport = async (audioPath) => {
+  try {
+    const response = await fetch(audioPath, { 
+      method: 'HEAD',
+      headers: { 'Range': 'bytes=0-1' }
+    });
+    return response.headers.get('accept-ranges') === 'bytes' || 
+           response.status === 206;
+  } catch (error) {
+    console.log('🔍 Error checking range support:', error);
+    return false;
+  }
+};
 
+// Function to detect network speed and return optimal chunk size
+const detectNetworkSpeed = () => {
+  const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  
+  if (connection) {
+    const speed = connection.effectiveType;
+    const downlink = connection.downlink; // Mbps
+    console.log('🌐 Network speed detected:', speed, 'Downlink:', downlink, 'Mbps');
+    
+    // Adjust chunk size based on network speed and downlink
+    if (downlink && downlink < 0.5) {
+      return 2048; // 2KB chunks for very slow connections (< 0.5 Mbps)
+    }
+    
+    switch (speed) {
+      case 'slow-2g':
+        return 4096; // 4KB chunks for very slow connections
+      case '2g':
+        return 6144; // 6KB chunks for slow connections
+      case '3g':
+        return 8192; // 8KB chunks for moderate connections
+      case '4g':
+      default:
+        return 16384; // 16KB chunks for fast connections
+    }
+  }
+  
+  return 8192; // default chunk size
+};
+
+// Function to preload first chunk for faster start
+const preloadAudioChunk = async (audioPath, chunkSize = 8192) => {
+  try {
+    const response = await fetch(audioPath, {
+      headers: { 'Range': `bytes=0-${chunkSize}` }
+    });
+    
+    if (response.ok) {
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      console.log('✅ Audio chunk preloaded:', chunkSize, 'bytes');
+      return url;
+    }
+  } catch (error) {
+    console.log('⚠️ Chunk preload failed:', error);
+  }
+  return null;
+};
+
+// Function to create streaming audio with chunk support
+const createStreamingAudio = (audioPath, onStartCallback, onEndCallback, onErrorCallback, setAudioBuffering, setBufferingProgress) => {
+  const audio = new Audio();
+  audio.volume = 1.0;
+  audio.preload = 'metadata'; // Preload only metadata for faster start
+  
+  // Set up event listeners with detailed logging
+  audio.addEventListener('loadstart', () => {
+    // console.log('🎵 Audio loading started (streaming mode)');
+    setAudioBuffering(true);
+    setBufferingProgress(0);
+    onStartCallback();
+  });
+  
+  audio.addEventListener('canplay', () => {
+    // console.log('🎵 Audio can start playing (streaming mode)');
+    setAudioBuffering(false);
+    setBufferingProgress(100);
+  });
+  
+  audio.addEventListener('canplaythrough', () => {
+    console.log('🎵 Audio ready to play through (streaming mode)');
+  });
+  
+  audio.addEventListener('playing', () => {
+    // console.log('🎵 Audio is now playing (streaming mode)');
+  });
+  
+  audio.addEventListener('ended', () => {
+    // console.log('🎵 Audio playback completed (streaming mode)');
+    setAudioBuffering(false);
+    setBufferingProgress(0);
+    onEndCallback();
+  });
+  
+  audio.addEventListener('error', (e) => {
+    console.error('❌ Error playing streaming audio:', e);
+    console.log('🔍 Audio error details:', {
+      error: audio.error,
+      networkState: audio.networkState,
+      readyState: audio.readyState
+    });
+    setAudioBuffering(false);
+    setBufferingProgress(0);
+    onErrorCallback(e);
+  });
+  
+  // Progress tracking for slow connections
+  audio.addEventListener('progress', () => {
+    if (audio.buffered.length > 0) {
+      const bufferedEnd = audio.buffered.end(audio.buffered.length - 1);
+      const duration = audio.duration;
+      if (duration > 0) {
+        const progress = (bufferedEnd / duration) * 100;
+        console.log(`🎵 Buffering progress: ${progress.toFixed(1)}%`);
+        setBufferingProgress(progress);
+      }
+    }
+  });
+  
+  // Set source
+  audio.src = audioPath;
+  
+  return audio;
+};
+
+// Function to play audio with chunk/streaming support
+const playAudioWithChunks = async (audioPath, onStartCallback, onEndCallback, onErrorCallback, setAudioBuffering, setBufferingProgress) => {
+  try {
+    console.log('🎵 Attempting to play audio with chunk support...');
+    
+    // Check if server supports range requests
+    const supportsRange = await checkRangeSupport(audioPath);
+    console.log('🔍 Server supports range requests:', supportsRange);
+    
+    // Detect network speed and get optimal chunk size
+    const chunkSize = detectNetworkSpeed();
+    console.log('🎵 Using chunk size:', chunkSize, 'bytes');
+    
+    // Preload first chunk if range requests are supported
+    if (supportsRange) {
+      await preloadAudioChunk(audioPath, chunkSize);
+    }
+    
+    // Create streaming audio
+    const audio = createStreamingAudio(audioPath, onStartCallback, onEndCallback, onErrorCallback, setAudioBuffering, setBufferingProgress);
+    
+    // Try to play immediately (will start as soon as enough data is buffered)
+    try {
+      await audio.play();
+      console.log('✅ Audio started playing with streaming support!');
+      return audio;
+    } catch (playError) {
+      console.log('⚠️ Immediate play failed, waiting for more data...', playError);
+      
+      // Wait for enough data to be buffered
+      return new Promise((resolve, reject) => {
+        const checkBuffer = () => {
+          if (audio.readyState >= 2) { // HAVE_CURRENT_DATA
+            audio.play()
+              .then(() => {
+                console.log('✅ Audio started after buffering!');
+                resolve(audio);
+              })
+              .catch(reject);
+          } else if (audio.readyState >= 1) { // HAVE_METADATA
+            setTimeout(checkBuffer, 100); // Check every 100ms
+          } else {
+            setTimeout(checkBuffer, 200); // Check every 200ms if no metadata yet
+          }
+        };
+        
+        // Start checking after a short delay
+        setTimeout(checkBuffer, 200);
+        
+        // Timeout after 15 seconds (increased for slow connections)
+        setTimeout(() => {
+          reject(new Error('Audio buffering timeout'));
+        }, 15000);
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Error with chunk audio playback:', error);
+    throw error;
+  }
+};
 // Function to get room data from queue's room_history
 const getRoomDataFromHistory = (queue, rooms) => {
   let roomCode = queue.room_id; // fallback to original room_id
@@ -101,6 +291,8 @@ export default function MonitorDisplay() {
   const headerRef = useRef(null);
   const [contentHeight, setContentHeight] = useState(null);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
+  const [audioBuffering, setAudioBuffering] = useState(false);
+  const [bufferingProgress, setBufferingProgress] = useState(0);
   const pendingAnnouncements = useRef([]);
   
   // Auto-enable audio on component mount
@@ -413,47 +605,11 @@ export default function MonitorDisplay() {
       console.log('🎵 File size:', response.headers.get('content-length'), 'bytes');
       console.log('🎵 Content type:', response.headers.get('content-type'));
       
-      // Create audio element and play the file from Supabase Storage
-      const audio = new Audio(audioPath);
-      audio.volume = 1.0;
-      
-      // Set up event listeners with detailed logging
-      audio.addEventListener('loadstart', () => {
-        console.log('🎵 Audio loading started from Supabase Storage');
-        onStartCallback();
-      });
-      
-      audio.addEventListener('canplaythrough', () => {
-        console.log('🎵 Audio ready to play from Supabase Storage');
-      });
-      
-      audio.addEventListener('playing', () => {
-        console.log('🎵 Audio is now playing from Supabase Storage');
-      });
-      
-      audio.addEventListener('ended', () => {
-        console.log('🎵 Audio playback completed from Supabase Storage');
-        onEndCallback();
-      });
-      
-      audio.addEventListener('error', (e) => {
-        console.error('❌ Error playing audio file from Supabase Storage:', e);
-        console.log('🔍 Audio error details:', {
-          error: audio.error,
-          networkState: audio.networkState,
-          readyState: audio.readyState
-        });
-        console.log('Audio path:', audioPath);
-        
-        // Fallback to TTS if audio file is not found
-        console.log('🔄 Falling back to TTS...');
+      // Use chunk audio for better performance on slow connections
+      await playAudioWithChunks(audioPath, onStartCallback, onEndCallback, (error) => {
+        console.error('❌ Chunk audio failed, falling back to TTS...');
         fallbackToTTS(queue, announceLang, onEndCallback);
-      });
-      
-      // Try to play the audio
-      console.log('▶️ Attempting to play audio from Supabase Storage...');
-      await audio.play();
-      console.log('✅ Successfully started playing audio from Supabase Storage!');
+      }, setAudioBuffering, setBufferingProgress);
       
     } catch (error) {
       console.error('❌ Error playing audio from Supabase Storage:', error);
@@ -957,16 +1113,28 @@ export default function MonitorDisplay() {
               <Volume2 className="w-4 h-4" />
               <span>เสียงประกาศ: เปิด</span>
             </div>
-            <button 
+            
+            {/* Audio Buffering Status */}
+            {audioBuffering && (
+              <div className="flex items-center gap-2 text-blue-600 text-sm">
+                <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                <span>กำลังโหลดเสียง... {bufferingProgress.toFixed(0)}%</span>
+                <span className="text-xs text-gray-500">
+                  ({detectNetworkSpeed() < 8192 ? 'เน็ตช้า' : 'เน็ตเร็ว'})
+                </span>
+              </div>
+            )}
+            
+            {/* <button 
               onClick={async () => {
                 console.log('🧪 Manual audio test...');
-                const testPath = 'https://supabase3.rg.in.th/storage/v1/object/public/voice-queue/92f58023-db93-44b9-8153-95ca42853dfe/A/th/New/A001.mp3';
+                const testPath = 'https://supabase3.rg.in.th/storage/v1/object/public/voice-queue/92f58023-db93-44b9-8153-95ca42853dfe/th/New/A001.mp3';
                 await testAudioFileExists(testPath);
               }}
               className="px-3 py-1 bg-blue-100 hover:bg-blue-200 rounded text-xs font-medium transition-colors"
             >
               ทดสอบเสียง
-            </button>
+            </button> */}
           </div>
         </div>
       </footer>
