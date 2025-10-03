@@ -123,9 +123,9 @@ export const QueueSettings = {
         const defaultSettings = {
           id: 'default-settings',
           ticket_format: {
-            new_patient_prefix: 'N',
-            returning_patient_prefix: 'R',
-            appointment_prefix: 'A'
+            new_patient_prefix: 'A',
+            returning_patient_prefix: 'B',
+            appointment_prefix: 'C'
           },
           voice_announcements: true,
           auto_skip_timeout: 5,
@@ -207,12 +207,8 @@ export const QueueSettings = {
 // --- Patient ---
 export const Patient = {
   list: async () => {
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
-    const res = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/patients', {
-      headers: {
-        'apikey': API_KEY,
-        'Authorization': `Bearer ${API_KEY}`
-      }
+    const res = await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/patients`, {
+      headers: API_HEADERS
     });
     return await res.json();
   },
@@ -240,30 +236,21 @@ export const Patient = {
     return true;
   },
   filter: async (params) => {
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
     const query = Object.entries(params)
       .map(([key, value]) => `${encodeURIComponent(key)}=eq.${encodeURIComponent(value)}`)
       .join('&');
-    const res = await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/patients?${query}`, {
-      headers: {
-        'apikey': API_KEY,
-        'Authorization': `Bearer ${API_KEY}`
-      }
+    const res = await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/patients?${query}`, {
+      headers: API_HEADERS
     });
     return await res.json();
   },
   findByHNOrIDCard: async (query) => {
     if (!query) return null;
     
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
-    
     try {
       // First try to find by ID card
-      const idCardRes = await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/patients?id_card=eq.${encodeURIComponent(query)}`, {
-        headers: {
-          'apikey': API_KEY,
-          'Authorization': `Bearer ${API_KEY}`
-        }
+      const idCardRes = await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/patients?id_card=eq.${encodeURIComponent(query)}`, {
+        headers: API_HEADERS
       });
       
       const idCardPatients = await idCardRes.json();
@@ -272,11 +259,8 @@ export const Patient = {
       }
       
       // If not found by ID card, try by HN number
-      const hnRes = await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/patients?hn_number=eq.${encodeURIComponent(query)}`, {
-        headers: {
-          'apikey': API_KEY,
-          'Authorization': `Bearer ${API_KEY}`
-        }
+      const hnRes = await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/patients?hn_number=eq.${encodeURIComponent(query)}`, {
+        headers: API_HEADERS
       });
       
       const hnPatients = await hnRes.json();
@@ -295,23 +279,17 @@ export const Patient = {
 // --- Appointment ---
 export const Appointment = {
   list: async () => {
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
-    const res = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/appointments', {
-      headers: {
-        'apikey': API_KEY,
-        'Authorization': `Bearer ${API_KEY}`
-      }
+    const res = await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/appointments`, {
+      headers: API_HEADERS
     });
     return await res.json();
   },
   create: async (data) => {
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
-    const res = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/appointments', {
+    const res = await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/appointments`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': API_KEY,
-        'Authorization': `Bearer ${API_KEY}`,
+        ...API_HEADERS,
         'Prefer': 'return=representation'
       },
       body: JSON.stringify(data)
@@ -321,13 +299,11 @@ export const Appointment = {
     return Array.isArray(result) ? result[0] : result;
   },
   update: async (id, data) => {
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
-    const res = await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/appointments?id=eq.${id}`, {
+    const res = await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/appointments?id=eq.${id}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': API_KEY,
-        'Authorization': `Bearer ${API_KEY}`,
+        ...API_HEADERS,
         'Prefer': 'return=representation'
       },
       body: JSON.stringify(data)
@@ -337,7 +313,6 @@ export const Appointment = {
     return Array.isArray(result) ? result[0] : result;
   },
   filter: async (params) => {
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
     let query = [];
     for (const key in params) {
       if (key.endsWith('_gte')) {
@@ -348,11 +323,8 @@ export const Appointment = {
       }
     }
     const queryString = query.join('&');
-    const res = await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/appointments?${queryString}`, {
-      headers: {
-        'apikey': API_KEY,
-        'Authorization': `Bearer ${API_KEY}`
-      }
+    const res = await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/appointments?${queryString}`, {
+      headers: API_HEADERS
     });
     return await res.json();
   }
@@ -401,12 +373,8 @@ currentUser = getCurrentUser();
 
 export const User = {
   list: async () => {
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
-    const res = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/user?select=id,username,full_name,email,phone,position,department,access_level,is_active,created_at,updated_at', {
-      headers: {
-        'apikey': API_KEY,
-        'Authorization': `Bearer ${API_KEY}`
-      }
+    const res = await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/user?select=id,username,full_name,email,phone,position,department,access_level,is_active,created_at,updated_at`, {
+      headers: API_HEADERS
     });
     return await res.json();
   },
@@ -414,16 +382,13 @@ export const User = {
   me: () => currentUser || getCurrentUser(),
   
   login: async (email, password) => {
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
-    
     try {
       // First try to authenticate with Supabase Auth
-      const authRes = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/auth/v1/token?grant_type=password', {
+      const authRes = await fetch(`${API_CONFIG.SUPABASE_URL}/auth/v1/token?grant_type=password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': API_KEY,
-          'Authorization': `Bearer ${API_KEY}`
+          ...API_HEADERS
         },
         body: JSON.stringify({
           email,
@@ -439,11 +404,8 @@ export const User = {
       const authData = await authRes.json();
       
       // Get user profile from our user table using email (more reliable than ID)
-      const userRes = await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/user?email=eq.${encodeURIComponent(email)}`, {
-        headers: {
-          'apikey': API_KEY,
-          'Authorization': `Bearer ${API_KEY}`
-        }
+      const userRes = await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/user?email=eq.${encodeURIComponent(email)}`, {
+        headers: API_HEADERS
       });
       
       if (!userRes.ok) {
@@ -485,7 +447,6 @@ export const User = {
   },
   
   signUp: async (userData) => {
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
     
     try {
       // Create user profile directly in the user table (auth.users will be handled by Supabase)
@@ -504,12 +465,11 @@ export const User = {
       };
 
       // First, create the user in the user table
-      const userRes = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/user', {
+      const userRes = await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/user`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': API_KEY,
-          'Authorization': `Bearer ${API_KEY}`,
+          ...API_HEADERS,
           'Prefer': 'return=representation'
         },
         body: JSON.stringify(userProfile)
@@ -525,12 +485,11 @@ export const User = {
       const newUser = Array.isArray(createdUser) ? createdUser[0] : createdUser;
 
       // Then, sign up the user with Supabase Auth
-      const authRes = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/auth/v1/signup', {
+      const authRes = await fetch(`${API_CONFIG.SUPABASE_URL}/auth/v1/signup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': API_KEY,
-          'Authorization': `Bearer ${API_KEY}`
+          ...API_HEADERS
         },
         body: JSON.stringify({
           email: userData.email,
@@ -550,12 +509,9 @@ export const User = {
       
       if (!authRes.ok) {
         // If auth fails, delete the user profile we just created
-        await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/user?id=eq.${newUser.id}`, {
+        await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/user?id=eq.${newUser.id}`, {
           method: 'DELETE',
-          headers: {
-            'apikey': API_KEY,
-            'Authorization': `Bearer ${API_KEY}`
-          }
+          headers: API_HEADERS
         });
         
         const error = await authRes.json();
@@ -570,15 +526,13 @@ export const User = {
   },
   
   logout: async () => {
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
-    
     try {
       // Invalidate the session
-      await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/auth/v1/logout', {
+      await fetch(`${API_CONFIG.SUPABASE_URL}/auth/v1/logout`, {
         method: 'POST',
         headers: {
-          'apikey': API_KEY,
-          'Authorization': `Bearer ${localStorage.getItem('supabase.auth.token') || API_KEY}`
+          'apikey': API_CONFIG.API_KEY,
+          'Authorization': `Bearer ${localStorage.getItem('supabase.auth.token') || API_CONFIG.API_KEY}`
         }
       });
     } catch (error) {
@@ -592,8 +546,6 @@ export const User = {
   },
   
   update: async (id, data) => {
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
-    
     // Prepare the update data - exclude any undefined or null values and the assigned_rooms field
     const { assigned_rooms, ...cleanData } = data;
     const updateData = {
@@ -615,12 +567,11 @@ export const User = {
       }, {});
     
     // Update user profile in the users table
-    const res = await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/user?id=eq.${id}`, {
+    const res = await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/user?id=eq.${id}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': API_KEY,
-        'Authorization': `Bearer ${API_KEY}`,
+        ...API_HEADERS,
         'Prefer': 'return=representation'
       },
       body: JSON.stringify(filteredUpdateData)
@@ -648,36 +599,26 @@ export const User = {
 // --- Feedback ---
 export const Feedback = {
   list: async () => {
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
-    const res = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/feedbacks', {
-      headers: {
-        'apikey': API_KEY,
-        'Authorization': `Bearer ${API_KEY}`
-      }
+    const res = await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/feedbacks`, {
+      headers: API_HEADERS
     });
     return await res.json();
   },
   filter: async (params) => {
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
     const query = Object.entries(params)
       .map(([key, value]) => `${encodeURIComponent(key)}=eq.${encodeURIComponent(value)}`)
       .join('&');
-    const res = await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/feedbacks?${query}`, {
-      headers: {
-        'apikey': API_KEY,
-        'Authorization': `Bearer ${API_KEY}`
-      }
+    const res = await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/feedbacks?${query}`, {
+      headers: API_HEADERS
     });
     return await res.json();
   },
   create: async (data) => {
-    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY';
-    const res = await fetch('https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/feedbacks', {
+    const res = await fetch(`${API_CONFIG.SUPABASE_URL}/rest/v1/feedbacks`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': API_KEY,
-        'Authorization': `Bearer ${API_KEY}`,
+        ...API_HEADERS,
         'Prefer': 'return=representation'
       },
       body: JSON.stringify(data)

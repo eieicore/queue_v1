@@ -44,9 +44,9 @@ function AdminManagementContent() {
       // Default settings structure that matches the database schema
       const defaultSettings = {
         ticket_format: {
-          new_patient_prefix: 'N',
-          returning_patient_prefix: 'R',
-          appointment_prefix: 'A'
+          new_patient_prefix: 'A',
+          returning_patient_prefix: 'B',
+          appointment_prefix: 'C'
         },
         voice_announcements: true,
         auto_skip_timeout: 10,
@@ -162,13 +162,7 @@ function AdminManagementContent() {
 
   // ฟังก์ชันลบห้อง
   const deleteRoom = async (roomCode) => {
-    await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/rooms?room_code=eq.${roomCode}`, {
-      method: "DELETE",
-      headers: {
-        apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY",
-        Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY"
-      }
-    });
+    await Room.delete(roomCode);
     loadData();
   };
 

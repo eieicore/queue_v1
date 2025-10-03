@@ -56,6 +56,13 @@ function AppointmentManagementContent() {
   useEffect(() => {
     loadData();
     // ไม่ใช้ auto-refresh สำหรับหน้านี้ เพื่อลด API calls
+    
+    // Cleanup timeout on unmount
+    return () => {
+      if (autocompleteTimeout) {
+        clearTimeout(autocompleteTimeout);
+      }
+    };
   }, []);
 
   const loadData = async () => {
@@ -188,18 +195,7 @@ function AppointmentManagementContent() {
 
         // 3. ลบ appointment
         console.log('Deleting appointment ID:', id);
-        const res = await fetch(`https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/appointments?id=eq.${id}`, {
-          method: 'DELETE',
-          headers: {
-            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY',
-            'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY'
-          }
-        });
-        const data = await res.json().catch(() => ({}));
-        console.log('Delete response:', res.status, data);
-        if (!res.ok) {
-          throw new Error('Failed to delete appointment');
-        }
+        await Appointment.delete(id);
         console.log('Appointment deleted successfully');
 
         // ลบออกจาก state ทันที
@@ -236,16 +232,79 @@ function AppointmentManagementContent() {
 
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
+  const [autocompleteSuggestions, setAutocompleteSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+  const [isAutocompleteLoading, setIsAutocompleteLoading] = useState(false);
+  const [autocompleteTimeout, setAutocompleteTimeout] = useState(null);
+
+  const searchPatientAutocomplete = async (query) => {
+    if (!query || query.trim() === '') {
+      setAutocompleteSuggestions([]);
+      setShowSuggestions(false);
+      setIsAutocompleteLoading(false);
+      return;
+    }
+
+    // Clear previous timeout
+    if (autocompleteTimeout) {
+      clearTimeout(autocompleteTimeout);
+    }
+
+    // Set loading state
+    setIsAutocompleteLoading(true);
+
+    // Debounce the API call by 300ms
+    const timeout = setTimeout(async () => {
+      try {
+        // ยิง API ไปค้นหาผู้ป่วยจริงๆ
+        const allPatients = await Patient.list();
+        
+        // ค้นหาผู้ป่วยที่ตรงกับ query (ชื่อ, นามสกุล, หรือรหัสบัตร)
+        const filteredPatients = allPatients.filter(patient => {
+          const fullName = `${patient.first_name || ''} ${patient.last_name || ''}`.toLowerCase();
+          const idCard = (patient.id_card || '').toLowerCase();
+          const hnNumber = (patient.hn_number || '').toLowerCase();
+          const searchQuery = query.toLowerCase();
+          
+          return fullName.includes(searchQuery) || 
+                 idCard.includes(searchQuery) || 
+                 hnNumber.includes(searchQuery);
+        });
+
+        // จำกัดผลลัพธ์ให้แสดงแค่ 5 รายการ
+        const suggestions = filteredPatients.slice(0, 5).map(patient => ({
+          id: patient.id,
+          name: `${patient.first_name || ''} ${patient.last_name || ''}`.trim(),
+          idCard: patient.id_card || patient.hn_number || '',
+          phone: patient.phone || ''
+        }));
+
+        setAutocompleteSuggestions(suggestions);
+        setShowSuggestions(suggestions.length > 0);
+      } catch (error) {
+        console.error('Error searching patients for autocomplete:', error);
+        setAutocompleteSuggestions([]);
+        setShowSuggestions(false);
+      } finally {
+        setIsAutocompleteLoading(false);
+      }
+    }, 300);
+
+    setAutocompleteTimeout(timeout);
+  };
 
   const searchPatient = async (query) => {
     if (!query) {
       setPatientSearched(false);
       setSearchError('');
+      setShowSuggestions(false);
       return;
     }
 
     setIsSearching(true);
     setSearchError('');
+    setShowSuggestions(false);
 
     try {
       const patient = await Patient.findByHNOrIDCard(query);
@@ -274,6 +333,19 @@ function AppointmentManagementContent() {
     } finally {
       setIsSearching(false);
     }
+  };
+
+  const selectPatientFromSuggestion = (suggestion) => {
+    setFormData(prev => ({
+      ...prev,
+      patient_id: suggestion.idCard,
+      patient_name: suggestion.name,
+      phone: suggestion.phone
+    }));
+    setPatientSearched(true);
+    setShowSuggestions(false);
+    setAutocompleteSuggestions([]);
+    setSearchError('');
   };
 
   const filteredAppointments = appointments.filter(appointment => {
@@ -398,29 +470,60 @@ function AppointmentManagementContent() {
                           <div className="space-y-2">
                             <Label htmlFor="patient-search">ค้นหาผู้ป่วย (ID Card/HN) <span className="text-red-500">*</span></Label>
                             <div className="space-y-1">
-                              <div className="relative flex gap-2">
+                              <div className="relative">
                                 <Input
                                   id="patient-search"
                                   placeholder="กรอกเลขบัตรประชาชนหรือ HN *"
                                   value={formData.patient_id || ''}
                                   onChange={(e) => {
+                                    const value = e.target.value;
                                     setFormData(prev => ({
                                       ...prev,
-                                      patient_id: e.target.value,
-                                      patient_name: e.target.value === '' ? '' : prev.patient_name
+                                      patient_id: value,
+                                      patient_name: value === '' ? '' : prev.patient_name
                                     }));
-                                    if (e.target.value === '') {
+                                    if (value === '') {
                                       setPatientSearched(false);
                                       setSearchError('');
+                                      setShowSuggestions(false);
+                                    } else {
+                                      // เรียก autocomplete เมื่อพิมพ์ 3 ตัวอักษรขึ้นไป
+                                      searchPatientAutocomplete(value);
                                     }
                                   }}
                                   onKeyDown={(e) => {
                                     if (e.key === 'Enter') {
                                       e.preventDefault();
-                                      searchPatient(e.target.value);
+                                      if (showSuggestions && selectedSuggestionIndex >= 0) {
+                                        selectPatientFromSuggestion(autocompleteSuggestions[selectedSuggestionIndex]);
+                                      } else {
+                                        searchPatient(e.target.value);
+                                      }
+                                    } else if (e.key === 'ArrowDown') {
+                                      e.preventDefault();
+                                      setSelectedSuggestionIndex(prev => 
+                                        prev < autocompleteSuggestions.length - 1 ? prev + 1 : prev
+                                      );
+                                    } else if (e.key === 'ArrowUp') {
+                                      e.preventDefault();
+                                      setSelectedSuggestionIndex(prev => prev > 0 ? prev - 1 : -1);
+                                    } else if (e.key === 'Escape') {
+                                      setShowSuggestions(false);
+                                      setSelectedSuggestionIndex(-1);
                                     }
                                   }}
-                                  onBlur={(e) => searchPatient(e.target.value)}
+                                  onBlur={(e) => {
+                                    // หน่วงเวลาการซ่อน suggestions เพื่อให้คลิกได้
+                                    setTimeout(() => {
+                                      setShowSuggestions(false);
+                                      setSelectedSuggestionIndex(-1);
+                                    }, 200);
+                                  }}
+                                  onFocus={() => {
+                                    if (autocompleteSuggestions.length > 0) {
+                                      setShowSuggestions(true);
+                                    }
+                                  }}
                                   required
                                   className={`pr-10 ${searchError ? 'border-red-500' : ''} ${patientSearched ? 'bg-green-50 border-green-500' : ''}`}
                                   disabled={isSearching}
@@ -442,6 +545,44 @@ function AppointmentManagementContent() {
                                     <Search className="w-4 h-4" />
                                   )}
                                 </Button>
+                                
+                                {/* Autocomplete Suggestions */}
+                                {showSuggestions && (
+                                  <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                    {isAutocompleteLoading ? (
+                                      <div key="loading" className="px-4 py-3 text-center text-gray-500">
+                                        <div className="flex items-center justify-center gap-2">
+                                          <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                                          กำลังค้นหา...
+                                        </div>
+                                      </div>
+                                    ) : autocompleteSuggestions.length > 0 ? (
+                                      autocompleteSuggestions.map((suggestion, index) => (
+                                        <div
+                                          key={suggestion.id || `suggestion-${index}`}
+                                          className={`px-4 py-3 cursor-pointer border-b border-gray-100 last:border-b-0 hover:bg-blue-50 ${
+                                            index === selectedSuggestionIndex ? 'bg-blue-50' : ''
+                                          }`}
+                                          onClick={() => selectPatientFromSuggestion(suggestion)}
+                                        >
+                                          <div className="flex items-center justify-between">
+                                            <div>
+                                              <div className="font-medium text-gray-900">{suggestion.name}</div>
+                                              <div className="text-sm text-gray-500">รหัสบัตร: {suggestion.idCard}</div>
+                                            </div>
+                                            {suggestion.phone && (
+                                              <div className="text-sm text-gray-400">{suggestion.phone}</div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      ))
+                                    ) : (
+                                      <div key="no-results" className="px-4 py-3 text-center text-gray-500">
+                                        ไม่พบข้อมูลผู้ป่วย
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                               {searchError && (
                                 <p className="text-sm text-red-500">{searchError}</p>

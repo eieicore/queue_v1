@@ -103,11 +103,11 @@ export default function Layout({ children }) {
     if (!user) return false;
     const levelHierarchy = { viewer: 1, staff: 2, admin: 3 };
     const userLevel = String(user.access_level || 'viewer').toLowerCase();
-    console.log(userLevel);
+    // console.log(userLevel);
     if (userLevel === 'admin') return true;
     const userValue = levelHierarchy[userLevel] ?? 0;
     const requiredValue = levelHierarchy[String(requiredLevel || 'viewer').toLowerCase()] ?? 1;
-    console.log(userValue, requiredValue);
+    // console.log(userValue, requiredValue);
     return userValue >= requiredValue;
   };
 
@@ -144,7 +144,7 @@ export default function Layout({ children }) {
   }
 
   const filteredNav = navigationItems.filter(item => hasPermission(item.requiredLevel));
-  console.log(filteredNav);
+  // console.log(filteredNav);
 
   return (
     <SidebarProvider>

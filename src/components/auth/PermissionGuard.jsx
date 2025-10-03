@@ -26,7 +26,7 @@ export default function PermissionGuard({ children, requiredLevel = "staff", all
       
       const userLevel = (userData?.access_level || 'staff').toLowerCase();
       const userRole = userData?.role || 'user';
-      console.log('userData', userData);
+      // console.log('userData', userData);
       // Check access level hierarchy
       const levelHierarchy = {
         'viewer': 1,

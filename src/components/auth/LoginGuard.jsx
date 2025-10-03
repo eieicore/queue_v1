@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LogIn, Activity, Loader2 } from "lucide-react";
+import { User as UserEntity } from "@/api/entities";
 
 export default function LoginGuard({ children }) {
   const [username, setUsername] = useState("");
@@ -23,23 +24,24 @@ export default function LoginGuard({ children }) {
     e.preventDefault();
     setError("");
     setIsLoggingIn(true);
-    const res = await fetch(
-      `https://omtkvjdxjlseozakrzgl.supabase.co/rest/v1/user?username=eq.${encodeURIComponent(username)}&password=eq.${encodeURIComponent(password)}`,
-      {
-        headers: {
-          apikey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY",
-          Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdGt2amR4amxzZW96YWtyemdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI1NTg2OTksImV4cCI6MjA2ODEzNDY5OX0.LMCdWVUGRyDj5-PTtjzMGeKQaIPz081IGEFh2863PTY"
-        }
+
+    try {
+      const users = await UserEntity.filter({
+        username: username,
+        password: password
+      });
+
+      setIsLoggingIn(false);
+      if (users.length > 0) {
+        const user = users[0];
+        localStorage.setItem("user", JSON.stringify(user));
+        window.location.href = "/Dashboard";
+      } else {
+        setError("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
       }
-    );
-    const users = await res.json();
-    setIsLoggingIn(false);
-    if (users.length > 0) {
-      const user = users[0];
-      localStorage.setItem("user", JSON.stringify(user));
-      window.location.href = "/Dashboard";
-    } else {
-      setError("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
+    } catch (error) {
+      setIsLoggingIn(false);
+      setError("เกิดข้อผิดพลาดในการเข้าสู่ระบบ");
     }
   };
 

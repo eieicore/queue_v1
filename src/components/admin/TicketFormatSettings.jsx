@@ -7,9 +7,9 @@ import { Save, Ticket } from 'lucide-react';
 
 export default function TicketFormatSettings({ settings, onSave, isSaving }) {
   const [ticketFormat, setTicketFormat] = useState({
-    new_patient_prefix: settings?.ticket_format?.new_patient_prefix || 'N',
-    returning_patient_prefix: settings?.ticket_format?.returning_patient_prefix || 'R',
-    appointment_prefix: settings?.ticket_format?.appointment_prefix || 'A'
+    new_patient_prefix: settings?.ticket_format?.new_patient_prefix || 'A',
+    returning_patient_prefix: settings?.ticket_format?.returning_patient_prefix || 'B',
+    appointment_prefix: settings?.ticket_format?.appointment_prefix || 'C'
   });
 
   const handleSave = () => {
