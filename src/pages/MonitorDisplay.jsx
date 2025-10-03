@@ -5,11 +5,85 @@ import { Badge } from '@/components/ui/badge';
 import { Monitor, Activity, User, Clock, Volume2, Users } from 'lucide-react'; // Added Users icon
 import { AnimatePresence, motion } from 'framer-motion';
 import { LanguageContext } from './index.jsx';
+import { API_CONFIG } from '@/config/constants.js';
 
 const LANGUAGE_VOICES = {
   'th': { name: 'ภาษาไทย', code: 'th-TH' },
   'en': { name: 'English', code: 'en-US' },
   'zh': { name: '中文', code: 'zh-CN' }
+};
+
+// Function to build audio file path from Supabase Storage
+const buildAudioPath = (roomId, language, patientType, queueNumber) => {
+  const baseUrl = 'https://supabase3.rg.in.th/storage/v1/object/public/voice-queue';
+  return `${baseUrl}/${roomId}/${language}/${patientType}/${queueNumber}.mp3`;
+};
+
+// Function to get patient type from queue number prefix
+const getPatientTypeFromQueueNumber = (queueNumber) => {
+  if (!queueNumber) return 'New';
+  
+  const firstChar = queueNumber.charAt(0).toUpperCase();
+  switch (firstChar) {
+    case 'A':
+      return 'New';
+    case 'B':
+      return 'Returning';
+    case 'C':
+      return 'Appointment';
+    default:
+      return 'New';
+  }
+};
+
+// Function to test if audio file exists in Supabase Storage
+const testAudioFileExists = async (audioPath) => {
+  try {
+    console.log('🧪 Testing audio file existence:', audioPath);
+    const response = await fetch(audioPath, { method: 'HEAD' });
+    const exists = response.ok;
+    console.log('🧪 Audio file exists:', exists, 'Status:', response.status);
+    if (exists) {
+      console.log('🧪 File size:', response.headers.get('content-length'), 'bytes');
+      console.log('🧪 Content type:', response.headers.get('content-type'));
+    }
+    return exists;
+  } catch (error) {
+    console.log('🧪 Error testing audio file:', error);
+    return false;
+  }
+};
+
+// Function to get room data from queue's room_history
+const getRoomDataFromHistory = (queue, rooms) => {
+  let roomCode = queue.room_id; // fallback to original room_id
+  let roomId = queue.room_id; // fallback to original room_id
+  
+  if (queue.room_history && queue.room_history.length > 0) {
+    // Get the latest room from history (the one with left_at: null or the last one)
+    const latestRoom = queue.room_history.find(room => room.left_at === null) || 
+                      queue.room_history[queue.room_history.length - 1];
+    
+    if (latestRoom && latestRoom.room_name) {
+      // Find the room in rooms array by room_name to get room_code and room_id
+      const roomData = rooms.find(r => r.room_name === latestRoom.room_name);
+      if (roomData && roomData.room_code) {
+        roomCode = roomData.room_code;
+        roomId = roomData.id || roomData.room_id || roomId; // Use room id from rooms data
+        // console.log('📍 Found room from history:', {
+        //   room_name: latestRoom.room_name,
+        //   room_code: roomData.room_code,
+        //   room_id: roomId,
+        //   entered_at: latestRoom.entered_at,
+        //   left_at: latestRoom.left_at
+        // });
+      } else {
+        console.warn('⚠️ Room not found in rooms array:', latestRoom.room_name);
+      }
+    }
+  }
+  
+  return { roomId, roomCode };
 };
 
 export default function MonitorDisplay() {
@@ -266,8 +340,8 @@ export default function MonitorDisplay() {
     };
   }, []);
 
-  // Process the next pending announcement
-  const processNextAnnouncement = useCallback((isInitial = false) => {
+  // Process the next pending announcement using Supabase Storage audio files
+  const processNextAnnouncement = useCallback(async (isInitial = false) => {
     if (isSpeaking.current || pendingAnnouncements.current.length === 0) return;
     
     // If user hasn't interacted yet, don't play audio
@@ -291,42 +365,23 @@ export default function MonitorDisplay() {
     // Use the queue's language if available, otherwise fall back to selected language
     const announceLang = queue.language || selectedLanguage;
     console.log('Announcement language:', announceLang, 'Queue language:', queue.language, 'Selected language:', selectedLanguage);
-    // Get the room name in the announcement language
-    const room = rooms.find(r => r.room_code === queue.room_id);
-    const localizedRoomName = room ? (room.room_names?.[announceLang] || room.room_name || queue.room_id) : queue.room_id;
     
-    // Create and speak the announcement based on selected language
-    let announcementText = '';
-    const queueNumber = queue.queue_number;
+    // Get patient type from queue number prefix
+    const patientType = getPatientTypeFromQueueNumber(queue.queue_number);
     
-    // More natural announcements for each language
-    const announcements = {
-      'th': `ขอเชิญคิว ${queueNumber} เข้ารับบริการที่ ${localizedRoomName}`, // More natural Thai
-      'zh': `请${queueNumber}号到${localizedRoomName}`, // Natural Chinese
-      'en': `Queue number ${queueNumber}, please proceed to ${localizedRoomName}`, // Natural English
-      'ja': `${queueNumber}番の方は${localizedRoomName}へお越しください`, // Japanese
-      'ko': `${queueNumber}번 고객님, ${localizedRoomName}으로 와 주세요`, // Korean
-      'fr': `Numéro de file d'attente ${queueNumber}, veuillez vous rendre à ${localizedRoomName}`, // French
-      'de': `Warteschlange Nummer ${queueNumber}, bitte gehen Sie zu ${localizedRoomName}`, // German
-      'es': `Número de cola ${queueNumber}, por favor diríjase a ${localizedRoomName}`, // Spanish
-      'it': `Numero di coda ${queueNumber}, si prega di recarsi a ${localizedRoomName}`, // Italian
-      'pt': `Fila número ${queueNumber}, por favor, dirija-se a ${localizedRoomName}`, // Portuguese
-      'ru': `Очередь номер ${queueNumber}, пожалуйста, пройдите в ${localizedRoomName}`, // Russian
-      'ar': `الرقم ${queueNumber}، يرجى التوجه إلى ${localizedRoomName}`, // Arabic
-      'hi': `कतार संख्या ${queueNumber}, कृपया ${localizedRoomName} पर जाएं` // Hindi
-    };
+    // Get room data from room_history (latest room)
+    const { roomId, roomCode } = getRoomDataFromHistory(queue, rooms);
     
-    // Get the announcement text for the announcement language, fallback to English
-    announcementText = announcements[announceLang] || announcements['en'];
-    
-    // Get voice parameters for the announcement language
-    const { voice, parameters } = getVoiceParams(announceLang);
+    // Build audio file path
+    const audioPath = buildAudioPath(roomId, announceLang, patientType, queue.queue_number);
+    // console.log('Playing audio from:', audioPath);
+    // console.log('Room ID:', roomId, 'Room code:', roomCode, 'Queue number:', queue.queue_number, 'Patient type:', patientType);
+    // console.log('Room history:', queue.room_history);
     
     // Set up event handlers
     const onStartCallback = () => {
       isSpeaking.current = true;
       console.log(`Started announcing queue ${queue.queue_number} for room ${queue.room_id}`);
-      if (parameters.onstart) parameters.onstart();
     };
     
     const onEndCallback = () => {
@@ -337,42 +392,164 @@ export default function MonitorDisplay() {
         pendingAnnouncements.current.shift();
         setTimeout(processNextAnnouncement, 2000); // 2 second delay
       }
-      if (parameters.onend) parameters.onend();
     };
     
     try {
-      // Check if ResponsiveVoice is available
-      if (window.responsiveVoice && typeof window.responsiveVoice.speak === 'function') {
-        console.log('Using ResponsiveVoice with voice:', voice);
-        console.log('Available voices:', window.responsiveVoice.voices);
-        
-        // Speak using ResponsiveVoice
-        window.responsiveVoice.speak(
-          announcementText,
-          voice,
-          {
-            ...parameters,
-            onstart: onStartCallback,
-            onend: onEndCallback,
-            onerror: onEndCallback
-          }
-        );
-      } else {
-        console.warn('ResponsiveVoice not properly initialized, falling back to Web Speech API');
-        throw new Error('ResponsiveVoice not available');
+      // First, check if the audio file exists by making a HEAD request
+      console.log('🔍 Checking if audio file exists at:', audioPath);
+      
+      const response = await fetch(audioPath, { method: 'HEAD' });
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      if (!response.ok) {
+        console.log('❌ Audio file not found in Supabase Storage (Status:', response.status, ')');
+        console.log('🔄 Falling back to TTS...');
+        fallbackToTTS(queue, announceLang, onEndCallback);
+        return;
       }
+      
+      console.log('✅ Audio file found in Supabase Storage!');
+      console.log('🎵 File size:', response.headers.get('content-length'), 'bytes');
+      console.log('🎵 Content type:', response.headers.get('content-type'));
+      
+      // Create audio element and play the file from Supabase Storage
+      const audio = new Audio(audioPath);
+      audio.volume = 1.0;
+      
+      // Set up event listeners with detailed logging
+      audio.addEventListener('loadstart', () => {
+        console.log('🎵 Audio loading started from Supabase Storage');
+        onStartCallback();
+      });
+      
+      audio.addEventListener('canplaythrough', () => {
+        console.log('🎵 Audio ready to play from Supabase Storage');
+      });
+      
+      audio.addEventListener('playing', () => {
+        console.log('🎵 Audio is now playing from Supabase Storage');
+      });
+      
+      audio.addEventListener('ended', () => {
+        console.log('🎵 Audio playback completed from Supabase Storage');
+        onEndCallback();
+      });
+      
+      audio.addEventListener('error', (e) => {
+        console.error('❌ Error playing audio file from Supabase Storage:', e);
+        console.log('🔍 Audio error details:', {
+          error: audio.error,
+          networkState: audio.networkState,
+          readyState: audio.readyState
+        });
+        console.log('Audio path:', audioPath);
+        
+        // Fallback to TTS if audio file is not found
+        console.log('🔄 Falling back to TTS...');
+        fallbackToTTS(queue, announceLang, onEndCallback);
+      });
+      
+      // Try to play the audio
+      console.log('▶️ Attempting to play audio from Supabase Storage...');
+      await audio.play();
+      console.log('✅ Successfully started playing audio from Supabase Storage!');
+      
     } catch (error) {
-      console.error('Error with ResponsiveVoice, falling back to Web Speech API:', error);
-      // Fallback to Web Speech API
-      const utterance = new window.SpeechSynthesisUtterance(announcementText);
-      utterance.lang = announceLang === 'th' ? 'th-TH' : announceLang === 'zh' ? 'zh-CN' : 'en-US';
-      utterance.rate = 0.8;
-      utterance.onend = onEndCallback;
-      utterance.onerror = onEndCallback;
-      window.speechSynthesis.speak(utterance);
+      console.error('❌ Error playing audio from Supabase Storage:', error);
+      console.log('🔍 Error details:', error);
+      console.log('Audio path:', audioPath);
+      
+      // Fallback to TTS
+      console.log('🔄 Falling back to TTS...');
+      fallbackToTTS(queue, announceLang, onEndCallback);
     }
     
   }, [selectedLanguage, rooms]);
+
+  // Fallback function to use TTS when audio file is not available
+  const fallbackToTTS = useCallback((queue, announceLang, onEndCallback) => {
+    console.log('🔊 Using TTS Fallback (audio file not found in Supabase Storage)');
+    console.log('📝 Queue:', queue.queue_number, 'Room:', queue.room_id, 'Language:', announceLang);
+    
+    // Get room data from room_history (same logic as main function)
+    const { roomId, roomCode } = getRoomDataFromHistory(queue, rooms);
+    
+    // Get room name from history for TTS
+    let roomName = queue.room_id; // fallback
+    if (queue.room_history && queue.room_history.length > 0) {
+      const latestRoom = queue.room_history.find(room => room.left_at === null) || 
+                        queue.room_history[queue.room_history.length - 1];
+      if (latestRoom && latestRoom.room_name) {
+        roomName = latestRoom.room_name;
+      }
+    }
+    
+    const room = rooms.find(r => r.room_code === roomCode);
+    const localizedRoomName = room ? (room.room_names?.[announceLang] || room.room_name || roomName) : roomName;
+    
+    // Create announcement text
+    let announcementText = '';
+    const queueNumber = queue.queue_number;
+    
+    const announcements = {
+      'th': `ขอเชิญคิว ${queueNumber} เข้ารับบริการที่ ${localizedRoomName}`,
+      'zh': `请${queueNumber}号到${localizedRoomName}`,
+      'en': `Queue number ${queueNumber}, please proceed to ${localizedRoomName}`,
+      'ja': `${queueNumber}番の方は${localizedRoomName}へお越しください`,
+      'ko': `${queueNumber}번 고객님, ${localizedRoomName}으로 와 주세요`,
+      'fr': `Numéro de file d'attente ${queueNumber}, veuillez vous rendre à ${localizedRoomName}`,
+      'de': `Warteschlange Nummer ${queueNumber}, bitte gehen Sie zu ${localizedRoomName}`,
+      'es': `Número de cola ${queueNumber}, por favor diríjase a ${localizedRoomName}`,
+      'it': `Numero di coda ${queueNumber}, si prega di recarsi a ${localizedRoomName}`,
+      'pt': `Fila número ${queueNumber}, por favor, dirija-se a ${localizedRoomName}`,
+      'ru': `Очередь номер ${queueNumber}, пожалуйста, пройдите в ${localizedRoomName}`,
+      'ar': `الرقم ${queueNumber}، يرجى التوجه إلى ${localizedRoomName}`,
+      'hi': `कतार संख्या ${queueNumber}, कृपया ${localizedRoomName} पर जाएं`
+    };
+    
+    announcementText = announcements[announceLang] || announcements['en'];
+    console.log('🔊 TTS Text:', announcementText);
+    
+    try {
+      // Try ResponsiveVoice first
+      if (window.responsiveVoice && typeof window.responsiveVoice.speak === 'function') {
+        console.log('🔊 Using ResponsiveVoice TTS');
+        const { voice, parameters } = getVoiceParams(announceLang);
+        window.responsiveVoice.speak(announcementText, voice, {
+          ...parameters,
+          onstart: () => console.log('🔊 TTS started (ResponsiveVoice)'),
+          onend: () => {
+            console.log('🔊 TTS completed (ResponsiveVoice)');
+            onEndCallback();
+          },
+          onerror: (error) => {
+            console.error('❌ TTS error (ResponsiveVoice):', error);
+            onEndCallback();
+          }
+        });
+      } else {
+        // Fallback to Web Speech API
+        console.log('🔊 Using Web Speech API TTS');
+        const utterance = new window.SpeechSynthesisUtterance(announcementText);
+        utterance.lang = announceLang === 'th' ? 'th-TH' : announceLang === 'zh' ? 'zh-CN' : 'en-US';
+        utterance.rate = 0.8;
+        utterance.onstart = () => console.log('🔊 TTS started (Web Speech API)');
+        utterance.onend = () => {
+          console.log('🔊 TTS completed (Web Speech API)');
+          onEndCallback();
+        };
+        utterance.onerror = (error) => {
+          console.error('❌ TTS error (Web Speech API):', error);
+          onEndCallback();
+        };
+        window.speechSynthesis.speak(utterance);
+      }
+    } catch (error) {
+      console.error('❌ Error with TTS fallback:', error);
+      onEndCallback(); // Still call onEnd to continue processing
+    }
+  }, [rooms, getVoiceParams]);
 
   // Attempt to auto-initialize audio on mount (for environments with autoplay allowed)
   useEffect(() => {
@@ -513,6 +690,18 @@ export default function MonitorDisplay() {
       const queuesData = await Queue.list();
       setAllQueues(queuesData);
       setServingQueues(queuesData.filter(q => q.status === 'serving' || q.status === 'called'));
+      
+      // Test audio files for current serving queues
+      // console.log('🧪 Testing audio files for serving queues...');
+      for (const queue of queuesData.filter(q => q.status === 'serving' || q.status === 'called')) {
+        const patientType = getPatientTypeFromQueueNumber(queue.queue_number);
+        
+        // Get room data from room_history (same logic as main function)
+        const { roomId, roomCode } = getRoomDataFromHistory(queue, roomsData.filter(r => r.is_active));
+        
+        const audioPath = buildAudioPath(roomId, roomCode, queue.language || selectedLanguage, patientType, queue.queue_number);
+        // await testAudioFileExists(audioPath);
+      }
     } catch (error) {
       console.error('Error loading data:', error);
     }
@@ -768,6 +957,16 @@ export default function MonitorDisplay() {
               <Volume2 className="w-4 h-4" />
               <span>เสียงประกาศ: เปิด</span>
             </div>
+            <button 
+              onClick={async () => {
+                console.log('🧪 Manual audio test...');
+                const testPath = 'https://supabase3.rg.in.th/storage/v1/object/public/voice-queue/92f58023-db93-44b9-8153-95ca42853dfe/A/th/New/A001.mp3';
+                await testAudioFileExists(testPath);
+              }}
+              className="px-3 py-1 bg-blue-100 hover:bg-blue-200 rounded text-xs font-medium transition-colors"
+            >
+              ทดสอบเสียง
+            </button>
           </div>
         </div>
       </footer>
