@@ -1,10 +1,33 @@
-import React from 'react';
+import React, { useState,useEffect,useMemo,useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Building, User, Clock } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { User as UserEntity } from "@/api/entities";
+
 
 export default function RoomActivity({ rooms, queues, isLoading }) {
+  const [staffs, setStaffs] = useState([]);
+  useEffect(() => {
+    const fetchStaffs = async () => {
+      const staffs = await UserEntity.list();
+
+      setStaffs(staffs);
+    };
+    fetchStaffs();
+  }, []);
+
+  const staffMap = useMemo(() => {
+    return new Map(staffs.map(staff => [staff.id, staff]));
+  }, [staffs]);
+  console.log('staffMap',staffMap);
+
+
+  const getStaffName = useCallback((staffId) => {
+    if (!staffId) return 'No Staff Assigned';
+    return staffMap.get(staffId)?.full_name 
+  }, [staffMap]);
+
   const getRoomStats = (roomCode) => {
     const roomQueues = queues.filter(q => q.room_id === roomCode);
     const todayQueues = roomQueues.filter(q => 
@@ -79,7 +102,7 @@ export default function RoomActivity({ rooms, queues, isLoading }) {
                     
                     {room.staff_assigned && (
                       <div className="mt-2 text-xs text-slate-500">
-                        Staff: {room.staff_assigned}
+                        Staff: {getStaffName(room.staff_assigned) || room.staff_assigned}
                       </div>
                     )}
                   </div>

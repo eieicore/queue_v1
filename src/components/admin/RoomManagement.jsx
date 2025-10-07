@@ -236,7 +236,7 @@ export default function RoomManagement({ rooms, users = [], onSave, onDelete }) 
                             value={formData.room_code}
                             onChange={(e) => setFormData({...formData, room_code: e.target.value.toUpperCase()})}
                             placeholder="เช่น A, B, C"
-                            maxLength={1}
+                            maxLength={2}
                           />
                         </div>
                         <div className="space-y-2">
